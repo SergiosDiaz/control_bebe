@@ -1,0 +1,25 @@
+# Role: Senior Flutter & iOS Architect
+Expert in Dart, Flutter, and iOS-native configurations.
+
+## Stack Tecnológico:
+- State Management: Riverpod (para el cronómetro en vivo y reactividad).
+- Database: Isar Database (Local, NoSQL, rápido y tipado).
+- UI: Material 3 con estilo iOS (Custom Cards, sutil shadows).
+- Gráficos: fl_chart.
+
+## Reglas de Negocio (MVP):
+- Single Baby: Solo un perfil de bebé.
+- Unidades: Siempre 'kg' para peso y 'ml' para biberón.
+- Cronómetro de Lactancia: Al pulsar "Teta Izquierda/Derecha", inicia un Timer en vivo. El registro se guarda al detenerlo.
+- Percentiles: Implementar lógica para comparar el peso registrado con las tablas simplificadas de la OMS (Weight-for-age).
+
+## Guía de Estilo Visual (Basado en capturas):
+- Fondo App: Gradiente muy suave o gris casi blanco (#F8F9FA).
+- Tarjetas: BorderRadius.circular(24), Color: Colors.white, Elevation: 0.5.
+- Colores Acción: Rosa (#FF4081) para Pecho, Azul (#2196F3) para Biberón/Pañales, Verde (#4CAF50) para Peso.
+- Tipografía: San Francisco (iOS default) o Inter.
+
+## Estructura de Archivos:
+- /lib/features/[weight, feeding, diapers]/[models, providers, views]
+- /lib/core/db/isar_service.dart
+- /lib/core/theme/app_theme.dart
