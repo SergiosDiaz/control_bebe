@@ -1,6 +1,6 @@
 {
-    "name": "control_bebe",
-    "short_name": "control_bebe",
+    "name": "MiBebé Diario",
+    "short_name": "MiBebé Diario",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -246,6 +246,14 @@ class StorageServiceWeb implements StorageService {
     await _saveSettings(s.copyWith(homeCardOrder: order));
   }
 
+  @override
+  Future<String?> getFamilyId() async => null;
+
+  @override
+  Future<void> joinFamily(String familyId) async {
+    throw UnsupportedError('Unir familia solo disponible con Firebase');
+  }
+
   // Helpers
   BabyProfile? _loadBabyProfile() {
     final json = _prefs?.getString(_keyBaby);

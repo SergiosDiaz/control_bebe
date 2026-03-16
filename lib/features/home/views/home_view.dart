@@ -4,12 +4,19 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/db/isar_service.dart';
+import '../../../core/models/baby_profile.dart';
+import '../../../core/models/diaper_record.dart';
+import '../../../core/models/feeding_record.dart';
+import '../../../core/models/weight_record.dart';
+import '../../settings/views/settings_page.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/percentiles_data.dart';
+import '../../../core/services/sabias_que_service.dart';
 class HomeView extends ConsumerStatefulWidget {
   final void Function(int index)? onNavigateToTab;
+  final VoidCallback? onTitleTap;
 
-  const HomeView({super.key, this.onNavigateToTab});
+  const HomeView({super.key, this.onNavigateToTab, this.onTitleTap});
 
   @override
   ConsumerState<HomeView> createState() => _HomeViewState();
@@ -17,6 +24,8 @@ class HomeView extends ConsumerStatefulWidget {
 
 class _HomeViewState extends ConsumerState<HomeView> {
   List<String> _cardOrder = ['weight', 'feeding', 'diapers'];
+  BabyProfile? _cachedBaby;
+  final _sabiasQueService = SabiasQueServiceDefault();
 
   @override
   void initState() {
@@ -59,13 +68,20 @@ class _HomeViewState extends ConsumerState<HomeView> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.child_care, color: AppTheme.textDark, size: 28),
-            const SizedBox(width: 8),
-            const Text('Control de Bebé'),
-          ],
+        title: InkWell(
+          onTap: widget.onTitleTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(AppTheme.titleIconAsset, width: 22, height: 22, fit: BoxFit.contain),
+                const SizedBox(width: 6),
+                Flexible(child: Text('MiBebé Diario', overflow: TextOverflow.ellipsis)),
+              ],
+            ),
+          ),
         ),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
@@ -75,44 +91,97 @@ class _HomeViewState extends ConsumerState<HomeView> {
             return const Center(child: CircularProgressIndicator());
           }
           final data = snapshot.data!;
-          return ReorderableListView(
-            padding: const EdgeInsets.all(16),
-            onReorder: _onReorder,
-            proxyDecorator: (child, index, animation) => Material(
-              elevation: 4,
-              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-              child: child,
-            ),
-            children: _cardOrder.asMap().entries.map((entry) {
-              final index = entry.key;
-              final id = entry.value;
-              final key = ValueKey(id);
-              switch (id) {
-                case 'weight':
-                  return _WeightCard(
-                    key: key,
-                    index: index,
-                    data: data['weight'] as _WeightData,
-                    onTap: () => _navigateTo('weight'),
-                  );
-                case 'feeding':
-                  return _FeedingCard(
-                    key: key,
-                    index: index,
-                    data: data['feeding'] as _FeedingData,
-                    onTap: () => _navigateTo('feeding'),
-                  );
-                case 'diapers':
-                  return _DiapersCard(
-                    key: key,
-                    index: index,
-                    data: data['diapers'] as _DiapersData,
-                    onTap: () => _navigateTo('diapers'),
-                  );
-                default:
-                  return const SizedBox(key: ValueKey('unknown'));
-              }
-            }).toList(),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: _BabyProfileCard(
+                  baby: data['baby'] as BabyProfile?,
+                  sabiasQueText: data['sabiasQue'] as String?,
+                  onSettingsTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SettingsPage(
+                          initialBaby: data['baby'] as BabyProfile?,
+                          onProfileSaved: (profile) {
+                            if (mounted) setState(() => _cachedBaby = profile);
+                          },
+                        ),
+                      ),
+                    );
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Stack(
+                  children: [
+                    ReorderableListView(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 56),
+                  onReorder: _onReorder,
+                      proxyDecorator: (child, index, animation) => Material(
+                        elevation: 4,
+                        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                        child: child,
+                      ),
+                      children: _cardOrder.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final id = entry.value;
+                        final key = ValueKey(id);
+                        switch (id) {
+                          case 'weight':
+                            return _WeightCard(
+                              key: key,
+                              index: index,
+                              data: data['weight'] as _WeightData,
+                              onTap: () => _navigateTo('weight'),
+                            );
+                          case 'feeding':
+                            return _FeedingCard(
+                              key: key,
+                              index: index,
+                              data: data['feeding'] as _FeedingData,
+                              onTap: () => _navigateTo('feeding'),
+                            );
+                          case 'diapers':
+                            return _DiapersCard(
+                              key: key,
+                              index: index,
+                              data: data['diapers'] as _DiapersData,
+                              onTap: () => _navigateTo('diapers'),
+                            );
+                          default:
+                            return const SizedBox(key: ValueKey('unknown'));
+                        }
+                      }).toList(),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 48,
+                      child: IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                AppTheme.background.withValues(alpha: 0),
+                                AppTheme.background,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -120,13 +189,26 @@ class _HomeViewState extends ConsumerState<HomeView> {
   }
 
   Future<Map<String, dynamic>> _loadHomeData() async {
-    final baby = await IsarService.getBabyProfile();
-    final weightRecords = await IsarService.getWeightRecords();
-    final feedingToday = await IsarService.getFeedingRecordsToday();
-    final lastFeeding = await IsarService.getLastFeedingRecord();
-    final diapersToday = await IsarService.getDiaperRecordsToday();
-    final diapersLast7 = await IsarService.getDiaperRecordsLast7Days();
-    final lastDiaper = await IsarService.getLastDiaperRecord();
+    final cachedBaby = _cachedBaby;
+    _cachedBaby = null;
+    final results = await Future.wait([
+      cachedBaby != null ? Future.value(cachedBaby) : IsarService.getBabyProfile(),
+      IsarService.getWeightRecords(),
+      IsarService.getFeedingRecordsToday(),
+      IsarService.getLastFeedingRecord(),
+      IsarService.getDiaperRecordsToday(),
+      IsarService.getDiaperRecordsLast7Days(),
+      IsarService.getLastDiaperRecord(),
+      _sabiasQueService.getFact(),
+    ]);
+    final baby = results[0] as BabyProfile?;
+    final weightRecords = results[1] as List<WeightRecord>;
+    final feedingToday = results[2] as List<FeedingRecord>;
+    final lastFeeding = results[3] as FeedingRecord?;
+    final diapersToday = results[4] as List<DiaperRecord>;
+    final diapersLast7 = results[5] as List<DiaperRecord>;
+    final lastDiaper = results[6] as DiaperRecord?;
+    final sabiasQue = results[7] as String?;
 
     final lastWeight = weightRecords.isNotEmpty ? weightRecords.first : null;
     final prevWeight = weightRecords.length > 1 ? weightRecords[1] : null;
@@ -202,6 +284,8 @@ class _HomeViewState extends ConsumerState<HomeView> {
     }
 
     return {
+      'baby': baby,
+      'sabiasQue': sabiasQue,
       'weight': _WeightData(
         currentKg: lastWeight?.weightKg,
         changeKg: changeKg,
@@ -225,6 +309,158 @@ class _HomeViewState extends ConsumerState<HomeView> {
         lastChangeType: lastDiaperType,
       ),
     };
+  }
+}
+
+/// Ficha fija con datos del bebé y "Sabías que...". No es reordenable.
+class _BabyProfileCard extends StatelessWidget {
+  final BabyProfile? baby;
+  final String? sabiasQueText;
+  final VoidCallback? onSettingsTap;
+
+  const _BabyProfileCard({
+    this.baby,
+    this.sabiasQueText,
+    this.onSettingsTap,
+  });
+
+  String _formatAge(DateTime birthDate) {
+    final totalDays = DateTime.now().difference(birthDate).inDays;
+    if (totalDays < 30) {
+      return '$totalDays día${totalDays != 1 ? 's' : ''}';
+    }
+    final months = totalDays ~/ 30;
+    final days = totalDays % 30;
+    return '$months mes${months != 1 ? 'es' : ''} y $days día${days != 1 ? 's' : ''}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMale = baby?.isMale ?? true;
+    final accentColor = isMale ? AppTheme.primaryBlue : AppTheme.primaryPink;
+    final name = baby?.name ?? 'Bebé';
+    final age = baby != null ? _formatAge(baby!.birthDate) : null;
+    final fact = sabiasQueText ?? 'Los bebés pueden reconocer la voz de su madre desde el útero.';
+
+    return Card(
+      margin: EdgeInsets.zero,
+      color: const Color(0xFFF5F5F5),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppTheme.fieldBackground,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.fieldBorder, width: 1.5),
+                  ),
+                  child: Icon(
+                    isMale ? Icons.face : Icons.face_3,
+                    color: AppTheme.textLight,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            name,
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textDark,
+                                ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            isMale ? Icons.male : Icons.female,
+                            size: 20,
+                            color: accentColor,
+                          ),
+                        ],
+                      ),
+                      if (age != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today, size: 14, color: AppTheme.textLight),
+                            const SizedBox(width: 6),
+                            Text(
+                              age,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppTheme.textLight,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (onSettingsTap != null)
+                  IconButton(
+                    onPressed: onSettingsTap,
+                    icon: Icon(Icons.settings_outlined, color: AppTheme.textLight),
+                    style: IconButton.styleFrom(
+                      padding: const EdgeInsets.all(8),
+                      minimumSize: const Size(40, 40),
+                    ),
+                  ),
+              ],
+            ),
+            if (sabiasQueText != null || fact.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.auto_awesome, size: 18, color: AppTheme.textDark),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'SABÍAS QUE...',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textDark,
+                                  letterSpacing: 0.5,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            fact,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppTheme.textDark,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 

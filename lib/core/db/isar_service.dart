@@ -44,6 +44,8 @@ class IsarService {
 
   static Future<List<String>> getHomeCardOrder() => _s.getHomeCardOrder();
   static Future<void> setHomeCardOrder(List<String> order) => _s.setHomeCardOrder(order);
+  static Future<String?> getFamilyId() => _s.getFamilyId();
+  static Future<void> joinFamily(String familyId) => _s.joinFamily(familyId);
 
   static Future<List<WeightRecord>> getWeightRecords() => _s.getWeightRecords();
   static Future<List<FeedingRecord>> getFeedingRecordsToday() => _s.getFeedingRecordsToday();

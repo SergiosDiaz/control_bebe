@@ -4,13 +4,18 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/edit_dialog_theme.dart';
 import '../../../core/db/isar_service.dart';
+import '../../../core/widgets/edit_dialog_fields.dart';
+import '../../../core/widgets/edit_bottom_sheet.dart';
 import '../../../core/models/baby_profile.dart';
 import '../../../core/models/weight_record.dart';
 import '../../../core/percentiles_data.dart';
 
 class WeightView extends ConsumerStatefulWidget {
-  const WeightView({super.key});
+  final VoidCallback? onTitleTap;
+
+  const WeightView({super.key, this.onTitleTap});
 
   @override
   ConsumerState<WeightView> createState() => _WeightViewState();
@@ -41,13 +46,20 @@ class _WeightViewState extends ConsumerState<WeightView> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.child_care, color: AppTheme.textDark, size: 28),
-            const SizedBox(width: 8),
-            const Text('Control de Bebé'),
-          ],
+        title: InkWell(
+          onTap: widget.onTitleTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(AppTheme.titleIconAsset, width: 22, height: 22, fit: BoxFit.contain),
+                const SizedBox(width: 6),
+                Flexible(child: Text('MiBebé Diario', overflow: TextOverflow.ellipsis)),
+              ],
+            ),
+          ),
         ),
       ),
       body: FutureBuilder<BabyProfile?>(
@@ -56,9 +68,13 @@ class _WeightViewState extends ConsumerState<WeightView> {
           final baby = babySnapshot.data;
           final isMale = baby?.isMale ?? true;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
+          return GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            behavior: HitTestBehavior.opaque,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Card(
@@ -101,6 +117,7 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                     TextFormField(
                                       controller: _weightController,
                                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      textInputAction: TextInputAction.done,
                                       decoration: const InputDecoration(
                                         hintText: 'Ej: 4.5',
                                       ),
@@ -120,7 +137,10 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                   padding: const EdgeInsets.only(top: 32),
                                   child: ElevatedButton(
                                     onPressed: _registerWeight,
-                                    child: const Text('Registrar'),
+                                    child: const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text('Registrar', overflow: TextOverflow.ellipsis),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -227,6 +247,7 @@ class _WeightViewState extends ConsumerState<WeightView> {
                 ),
               ],
             ),
+          ),
           );
         },
       ),
@@ -465,81 +486,69 @@ class _WeightRecordTile extends StatelessWidget {
 
   void _showEditDialog(BuildContext context, WeightRecord record) {
     final controller = TextEditingController(text: record.weightKg.toString());
-    var selectedDate = record.dateTime;
-    showDialog(
+    var selectedDate = DateTime(record.dateTime.year, record.dateTime.month, record.dateTime.day);
+    var selectedTime = TimeOfDay.fromDateTime(record.dateTime);
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Editar peso'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: controller,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Peso (kg)'),
-                ),
-                const SizedBox(height: 16),
-                const Text('Fecha y hora', style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now().add(const Duration(days: 1)),
-                    );
-                    if (date != null && ctx.mounted) {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.fromDateTime(selectedDate),
-                      );
-                      if (time != null && ctx.mounted) {
-                        setState(() => selectedDate = DateTime(
-                          date.year, date.month, date.day,
-                          time.hour, time.minute,
-                        ));
-                      }
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(12),
+        builder: (context, setState) => EditBottomSheet(
+          title: 'Editar peso',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Peso (kg)',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textDark,
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today, size: 20),
-                        const SizedBox(width: 12),
-                        Text(DateFormat('d MMM yyyy, HH:mm').format(selectedDate)),
-                      ],
-                    ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: controller,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  hintText: 'Ej: 4.5',
+                  filled: true,
+                  fillColor: AppTheme.fieldBackground,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                    borderSide: const BorderSide(color: AppTheme.fieldBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                    borderSide: const BorderSide(color: AppTheme.fieldBorder),
                   ),
                 ),
-              ],
-            ),
+              ),
+              SizedBox(height: EditDialogTheme.spacingBetweenSections),
+              DatePickerField(
+                value: selectedDate,
+                onChanged: (d) => setState(() => selectedDate = d),
+                lastDate: DateTime.now().add(const Duration(days: 1)),
+              ),
+              SizedBox(height: EditDialogTheme.spacingBetweenFields),
+              TimePickerField(
+                value: selectedTime,
+                onChanged: (t) => setState(() => selectedTime = t),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () async {
-                final w = double.tryParse(controller.text.trim().replaceAll(',', '.'));
-                if (w != null && w > 0) {
-                  await IsarService.updateWeightRecord(record.copyWith(weightKg: w, dateTime: selectedDate));
-                  if (ctx.mounted) Navigator.pop(ctx);
-                }
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
+          onCancel: () => Navigator.pop(ctx),
+          onSave: () async {
+            final w = double.tryParse(controller.text.trim().replaceAll(',', '.'));
+            if (w != null && w > 0) {
+              final dt = DateTime(
+                selectedDate.year, selectedDate.month, selectedDate.day,
+                selectedTime.hour, selectedTime.minute,
+              );
+              await IsarService.updateWeightRecord(record.copyWith(weightKg: w, dateTime: dt));
+              if (ctx.mounted) Navigator.pop(ctx);
+            }
+          },
         ),
       ),
     );

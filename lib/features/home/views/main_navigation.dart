@@ -16,18 +16,18 @@ class MainNavigation extends ConsumerStatefulWidget {
 
 class _MainNavigationState extends ConsumerState<MainNavigation> {
   int _currentIndex = 0;
-  int _homeRefreshKey = 0;
 
   @override
   Widget build(BuildContext context) {
+    void goToHome() => setState(() => _currentIndex = 0);
     final screens = [
       HomeView(
-        key: ValueKey('home_$_homeRefreshKey'),
         onNavigateToTab: (i) => setState(() => _currentIndex = i),
+        onTitleTap: goToHome,
       ),
-      const DiapersView(),
-      const FeedingView(),
-      const WeightView(),
+      DiapersView(onTitleTap: goToHome),
+      FeedingView(onTitleTap: goToHome),
+      WeightView(onTitleTap: goToHome),
     ];
     return Scaffold(
       body: IndexedStack(
@@ -57,10 +57,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
                   label: 'Inicio',
                   isSelected: _currentIndex == 0,
                   color: AppTheme.primaryBlue,
-                  onTap: () => setState(() {
-                    _currentIndex = 0;
-                    _homeRefreshKey++;
-                  }),
+                  onTap: () => setState(() => _currentIndex = 0),
                 ),
                 _NavItem(
                   icon: Icons.water_drop_outlined,

@@ -1,0 +1,19 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "baby-control-tracker",
+          "configurations": {
+            "android": "1:933035228249:android:74498a41fea64434ca4548",
+            "ios": "1:933035228249:ios:4b504de2ec672340ca4548",
+            "web": "1:933035228249:web:4131ff00331dd8b6ca4548"
+          }
+        }
+      }
+    }
+  }
+}

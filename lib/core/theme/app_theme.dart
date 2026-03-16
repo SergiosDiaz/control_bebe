@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
+  /// Ruta del icono de título en AppBar (Home, Alimentación, Peso, Pañales).
+  static const String titleIconAsset = 'assets/images/icon_mibebe.png';
   static const Color background = Color(0xFFF8F9FA);
   static const Color cardBackground = Colors.white;
   static const Color primaryPink = Color(0xFFFF4081);
@@ -12,6 +14,10 @@ class AppTheme {
 
   static const double cardRadius = 24;
   static const double cardElevation = 0.5;
+  static const double dialogRadius = 28;
+  static const double fieldRadius = 18;
+  static const Color fieldBackground = Color(0xFFF8F9FA);
+  static const Color fieldBorder = Color(0xFFE8E9EA);
 
   static ThemeData get lightTheme {
     return ThemeData(

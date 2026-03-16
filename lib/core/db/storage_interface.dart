@@ -5,7 +5,7 @@ import '../models/feeding_record.dart';
 import '../models/lactation_timer.dart';
 import '../models/enums.dart';
 
-/// Interfaz de almacenamiento - implementada por storage_io (Isar) y storage_web (SharedPreferences)
+/// Interfaz de almacenamiento - implementada por storage_firebase (Firestore) y storage_web (SharedPreferences como fallback)
 abstract class StorageService {
   Future<void> initialize();
 
@@ -42,4 +42,10 @@ abstract class StorageService {
 
   Future<List<String>> getHomeCardOrder();
   Future<void> setHomeCardOrder(List<String> order);
+
+  /// ID de familia para compartir acceso (Firebase). Null si no aplica.
+  Future<String?> getFamilyId();
+
+  /// Une al usuario actual a una familia existente (escaneo QR). Firebase solo.
+  Future<void> joinFamily(String familyId);
 }

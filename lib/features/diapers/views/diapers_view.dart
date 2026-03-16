@@ -4,12 +4,17 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/edit_dialog_theme.dart';
 import '../../../core/db/isar_service.dart';
+import '../../../core/widgets/edit_dialog_fields.dart';
+import '../../../core/widgets/edit_bottom_sheet.dart';
 import '../../../core/models/diaper_record.dart';
 import '../../../core/models/enums.dart';
 
 class DiapersView extends ConsumerStatefulWidget {
-  const DiapersView({super.key});
+  final VoidCallback? onTitleTap;
+
+  const DiapersView({super.key, this.onTitleTap});
 
   @override
   ConsumerState<DiapersView> createState() => _DiapersViewState();
@@ -17,19 +22,27 @@ class DiapersView extends ConsumerStatefulWidget {
 
 class _DiapersViewState extends ConsumerState<DiapersView> {
   DiaperType _selectedType = DiaperType.dirty;
+  DiaperRecord? _optimisticRecord;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.child_care, color: AppTheme.textDark, size: 28),
-            const SizedBox(width: 8),
-            const Text('Control de Bebé'),
-          ],
+        title: InkWell(
+          onTap: widget.onTitleTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(AppTheme.titleIconAsset, width: 22, height: 22, fit: BoxFit.contain),
+                const SizedBox(width: 6),
+                Flexible(child: Text('MiBebé Diario', overflow: TextOverflow.ellipsis)),
+              ],
+            ),
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -104,10 +117,22 @@ class _DiapersViewState extends ConsumerState<DiapersView> {
                 StreamBuilder<List<DiaperRecord>>(
                   stream: IsarService.watchDiaperRecords(),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
+                    if (!snapshot.hasData && _optimisticRecord == null) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    final records = snapshot.data!;
+                    var records = snapshot.data ?? [];
+                    if (_optimisticRecord != null) {
+                      final match = records.any((r) =>
+                          r.type == _optimisticRecord!.type &&
+                          r.dateTime.difference(_optimisticRecord!.dateTime).inSeconds.abs() < 2);
+                      if (match) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() => _optimisticRecord = null);
+                        });
+                      } else {
+                        records = [_optimisticRecord!, ...records];
+                      }
+                    }
                     final sorted = List<DiaperRecord>.from(records)
                       ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
                     final grouped = <String, List<DiaperRecord>>{};
@@ -176,7 +201,9 @@ class _DiapersViewState extends ConsumerState<DiapersView> {
   }
 
   Future<void> _registerDiaper() async {
-    await IsarService.addDiaperRecord(DiaperRecord(type: _selectedType, dateTime: DateTime.now()));
+    final record = DiaperRecord(type: _selectedType, dateTime: DateTime.now());
+    setState(() => _optimisticRecord = record);
+    await IsarService.addDiaperRecord(record);
   }
 }
 
@@ -246,109 +273,88 @@ class _DiaperRecordTile extends StatelessWidget {
 
   void _showEditDialog(BuildContext context, DiaperRecord record, VoidCallback onDelete) {
     var selectedType = record.type;
-    var selectedDate = record.dateTime;
-    showDialog(
+    var selectedDate = DateTime(record.dateTime.year, record.dateTime.month, record.dateTime.day);
+    var selectedTime = TimeOfDay.fromDateTime(record.dateTime);
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Editar registro'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Tipo', style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Row(
-                  children: DiaperType.values.map((type) {
-                    final (icon, label, isFa) = switch (type) {
-                      DiaperType.wet => (Icons.water_drop, 'Mojado', false),
-                      DiaperType.dirty => (FontAwesomeIcons.poo, 'Sucio', true),
-                      DiaperType.both => (Icons.sync, 'Ambos', false),
-                    };
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: InkWell(
-                          onTap: () => setState(() => selectedType = type),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
+        builder: (context, setState) => EditBottomSheet(
+          title: 'Editar registro',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Tipo',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textDark,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: DiaperType.values.map((type) {
+                  final (icon, label, isFa) = switch (type) {
+                    DiaperType.wet => (Icons.water_drop, 'Mojado', false),
+                    DiaperType.dirty => (FontAwesomeIcons.poo, 'Sucio', true),
+                    DiaperType.both => (Icons.sync, 'Ambos', false),
+                  };
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: InkWell(
+                        onTap: () => setState(() => selectedType = type),
+                        borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          decoration: BoxDecoration(
+                            color: selectedType == type
+                                ? AppTheme.primaryBlue.withValues(alpha: 0.15)
+                                : AppTheme.fieldBackground,
+                            borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                            border: Border.all(
                               color: selectedType == type
                                   ? AppTheme.primaryBlue.withValues(alpha: 0.2)
-                                  : const Color(0xFFF5F5F5),
-                              borderRadius: BorderRadius.circular(12),
+                                  : AppTheme.fieldBorder,
+                              width: 1,
                             ),
-                            child: Column(
-                              children: [
-                                isFa ? FaIcon(icon, size: 24) : Icon(icon, size: 24),
-                                const SizedBox(height: 4),
-                                Text(label, style: const TextStyle(fontSize: 12)),
-                              ],
-                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              isFa ? FaIcon(icon, size: 24) : Icon(icon, size: 24),
+                              const SizedBox(height: 6),
+                              Text(label, style: const TextStyle(fontSize: 12)),
+                            ],
                           ),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 20),
-                const Text('Fecha y hora', style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now().add(const Duration(days: 1)),
-                    );
-                    if (date != null && ctx.mounted) {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.fromDateTime(selectedDate),
-                      );
-                      if (time != null && ctx.mounted) {
-                        setState(() => selectedDate = DateTime(
-                          date.year, date.month, date.day,
-                          time.hour, time.minute,
-                        ));
-                      }
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today, size: 20),
-                        const SizedBox(width: 12),
-                        Text(DateFormat('d MMM yyyy, HH:mm').format(selectedDate)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                  );
+                }).toList(),
+              ),
+              SizedBox(height: EditDialogTheme.spacingBetweenSections),
+              DatePickerField(
+                value: selectedDate,
+                onChanged: (d) => setState(() => selectedDate = d),
+                lastDate: DateTime.now().add(const Duration(days: 1)),
+              ),
+              SizedBox(height: EditDialogTheme.spacingBetweenFields),
+              TimePickerField(
+                value: selectedTime,
+                onChanged: (t) => setState(() => selectedTime = t),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () async {
-                await IsarService.updateDiaperRecord(record.copyWith(type: selectedType, dateTime: selectedDate));
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
+          onCancel: () => Navigator.pop(ctx),
+          onSave: () async {
+            final dt = DateTime(
+              selectedDate.year, selectedDate.month, selectedDate.day,
+              selectedTime.hour, selectedTime.minute,
+            );
+            await IsarService.updateDiaperRecord(record.copyWith(type: selectedType, dateTime: dt));
+            if (ctx.mounted) Navigator.pop(ctx);
+          },
         ),
       ),
     );
