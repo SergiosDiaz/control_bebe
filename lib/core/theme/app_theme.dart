@@ -9,6 +9,10 @@ class AppTheme {
   static const Color primaryBlue = Color(0xFF2196F3);
   static const Color primaryGreen = Color(0xFF4CAF50);
   static const Color primaryOrange = Color(0xFFFF9800);
+  /// Color para pecho izquierdo en historial (rosa)
+  static const Color breastLeft = Color(0xFFFF4081);
+  /// Color para pecho derecho en historial (coral/naranja)
+  static const Color breastRight = Color(0xFFFF9800);
   static const Color textDark = Color(0xFF333333);
   static const Color textLight = Color(0xFF9E9E9E);
 

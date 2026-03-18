@@ -14,8 +14,9 @@ import '../../../core/percentiles_data.dart';
 
 class WeightView extends ConsumerStatefulWidget {
   final VoidCallback? onTitleTap;
+  final ScrollController? scrollController;
 
-  const WeightView({super.key, this.onTitleTap});
+  const WeightView({super.key, this.onTitleTap, this.scrollController});
 
   @override
   ConsumerState<WeightView> createState() => _WeightViewState();
@@ -72,6 +73,7 @@ class _WeightViewState extends ConsumerState<WeightView> {
             onTap: () => FocusScope.of(context).unfocus(),
             behavior: HitTestBehavior.opaque,
             child: SingleChildScrollView(
+              controller: widget.scrollController,
               padding: const EdgeInsets.all(20),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Column(

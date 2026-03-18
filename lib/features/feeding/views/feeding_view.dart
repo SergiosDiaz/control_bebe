@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format_duration.dart';
@@ -17,8 +19,9 @@ import 'bottle_view.dart';
 
 class FeedingView extends ConsumerStatefulWidget {
   final VoidCallback? onTitleTap;
+  final ScrollController? scrollController;
 
-  const FeedingView({super.key, this.onTitleTap});
+  const FeedingView({super.key, this.onTitleTap, this.scrollController});
 
   @override
   ConsumerState<FeedingView> createState() => _FeedingViewState();
@@ -107,6 +110,7 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
         ),
       ),
       body: SingleChildScrollView(
+        controller: widget.scrollController,
         padding: const EdgeInsets.all(20),
         child: Card(
           child: Padding(
@@ -116,7 +120,7 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.local_drink, color: AppTheme.primaryPink),
+                    Icon(MdiIcons.foodApple, color: AppTheme.primaryPink),
                     const SizedBox(width: 8),
                     Text(
                       'Alimentación',
@@ -135,12 +139,20 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
                   ),
                   const SizedBox(height: 24),
                 ],
+                Text(
+                  'Tipo de toma',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppTheme.textLight,
+                      ),
+                ),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: _BreastButton(
-                        label: 'Teta Izquierda',
-                        icon: Icons.arrow_back,
+                        label: 'Pecho Izquierdo',
+                        icon: FontAwesomeIcons.personBreastfeeding,
+                        mirrored: false,
                         onTap: () async {
                           if (_activeTimer?.side == LactationSide.left) {
                             await _stopBreast();
@@ -155,8 +167,9 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _BreastButton(
-                        label: 'Teta Derecha',
-                        icon: Icons.arrow_forward,
+                        label: 'Pecho Derecho',
+                        icon: FontAwesomeIcons.personBreastfeeding,
+                        mirrored: true,
                         onTap: () async {
                           if (_activeTimer?.side == LactationSide.right) {
                             await _stopBreast();
@@ -204,31 +217,31 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Historial',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            Text(
-                              '${sorted.length} toma${sorted.length != 1 ? 's' : ''}',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppTheme.textLight,
-                                  ),
-                            ),
-                          ],
+                        Text(
+                          'Historial',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                         const SizedBox(height: 16),
                         ...grouped.entries.expand((e) => [
-                          Text(
-                            e.key,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.textLight,
-                                ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                e.key,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.textLight,
+                                    ),
+                              ),
+                              Text(
+                                '${e.value.length} toma${e.value.length != 1 ? 's' : ''}',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppTheme.textLight,
+                                    ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           ...e.value.map((r) => _FeedingRecordTile(record: r)),
@@ -264,14 +277,20 @@ class _ActiveTimerBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.timer, color: AppTheme.primaryPink, size: 32),
+          timer.side == LactationSide.left
+              ? const FaIcon(FontAwesomeIcons.personBreastfeeding, color: AppTheme.breastLeft, size: 32)
+              : Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.diagonal3Values(-1, 1, 1),
+                  child: const FaIcon(FontAwesomeIcons.personBreastfeeding, color: AppTheme.breastRight, size: 32),
+                ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Cronómetro activo: ${timer.side == LactationSide.left ? "Teta Izquierda" : "Teta Derecha"}',
+                  'Cronómetro activo: ${timer.side == LactationSide.left ? "Pecho Izquierdo" : "Pecho Derecho"}',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Text(
@@ -298,50 +317,58 @@ class _ActiveTimerBanner extends StatelessWidget {
 class _BreastButton extends StatelessWidget {
   final String label;
   final IconData icon;
+  final bool mirrored;
   final VoidCallback onTap;
   final bool isActive;
 
   const _BreastButton({
     required this.label,
     required this.icon,
+    this.mirrored = false,
     required this.onTap,
     this.isActive = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final color = isActive ? AppTheme.primaryPink : AppTheme.textLight;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 24),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isActive ? const Color(0xFFF5F5F5) : Colors.white,
           borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+          border: Border.all(
+            color: isActive ? AppTheme.primaryPink.withValues(alpha: 0.5) : Colors.transparent,
+            width: 2,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
+              blurRadius: 4,
               offset: const Offset(0, 2),
             ),
           ],
-          border: isActive
-              ? Border.all(color: AppTheme.primaryPink, width: 2)
-              : null,
         ),
         child: Column(
           children: [
-            Icon(
-              icon,
-              size: 48,
-              color: isActive ? AppTheme.primaryPink : AppTheme.textLight,
-            ),
+            mirrored
+                ? Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.diagonal3Values(-1, 1, 1),
+                    child: FaIcon(icon, size: 28, color: color),
+                  )
+                : FaIcon(icon, size: 28, color: color),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: isActive ? AppTheme.primaryPink : AppTheme.textDark,
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                color: isActive ? AppTheme.textDark : AppTheme.textLight,
               ),
               textAlign: TextAlign.center,
             ),
@@ -362,29 +389,33 @@ class _BottleButton extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 24),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+          border: Border.all(color: Colors.transparent, width: 2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
+              blurRadius: 4,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
           children: [
-            Icon(Icons.local_drink, size: 48, color: AppTheme.primaryBlue),
+            Icon(MdiIcons.babyBottle, size: 28, color: AppTheme.primaryBlue),
             const SizedBox(height: 8),
             Text(
               'Biberón',
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textDark,
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+                color: AppTheme.textLight,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -400,10 +431,10 @@ class _FeedingRecordTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (icon, label, color) = switch (record.type) {
-      FeedingType.leftBreast => (Icons.timer, 'Teta Izquierda', AppTheme.primaryPink),
-      FeedingType.rightBreast => (Icons.timer, 'Teta Derecha', AppTheme.primaryPink),
-      FeedingType.bottle => (Icons.local_drink, 'Biberón', AppTheme.primaryBlue),
+    final (icon, label, color, mirrored) = switch (record.type) {
+      FeedingType.leftBreast => (FontAwesomeIcons.personBreastfeeding, 'Pecho Izquierdo', AppTheme.breastLeft, false),
+      FeedingType.rightBreast => (FontAwesomeIcons.personBreastfeeding, 'Pecho Derecho', AppTheme.breastRight, true),
+      FeedingType.bottle => (MdiIcons.babyBottle, 'Biberón', AppTheme.primaryBlue, false),
     };
     final duration = record.durationSeconds != null
         ? formatDurationSeconds(record.durationSeconds!)
@@ -414,7 +445,15 @@ class _FeedingRecordTile extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: color.withValues(alpha: 0.2),
-          child: Icon(icon, color: color),
+          child: record.type == FeedingType.bottle
+              ? Icon(icon, color: color)
+              : (mirrored
+                  ? Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.diagonal3Values(-1, 1, 1),
+                      child: FaIcon(icon, color: color),
+                    )
+                  : FaIcon(icon, color: color)),
         ),
         title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(

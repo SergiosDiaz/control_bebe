@@ -11,30 +11,16 @@ class SplashScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/images/app_icon.png',
-              width: 120,
-              height: 120,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Icon(
-                Icons.child_care,
-                size: 120,
-                color: AppTheme.primaryPink,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                color: AppTheme.primaryPink,
-              ),
-            ),
-          ],
+        child: Image.asset(
+          'assets/images/app_icon.png',
+          width: 120,
+          height: 120,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => Icon(
+            Icons.child_care,
+            size: 120,
+            color: AppTheme.primaryPink,
+          ),
         ),
       ),
     );

@@ -51,6 +51,8 @@
 		<true/>
 		<key>NSCameraUsageDescription</key>
 		<string>La cámara se usa para escanear códigos QR y unirte a una familia.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Se usa para elegir una foto del bebé en la ficha del perfil.</string>
 		<!-- Google Sign-In: valores de firebase_options.dart (iosClientId) -->
 		<key>GIDClientID</key>
 		<string>933035228249-qukbu1rdjqpankt4r3ecvf17lsrcmqbh.apps.googleusercontent.com</string>

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import 'home_view.dart';
@@ -16,6 +17,34 @@ class MainNavigation extends ConsumerStatefulWidget {
 
 class _MainNavigationState extends ConsumerState<MainNavigation> {
   int _currentIndex = 0;
+  final _diapersScrollController = ScrollController();
+  final _feedingScrollController = ScrollController();
+  final _weightScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _diapersScrollController.dispose();
+    _feedingScrollController.dispose();
+    _weightScrollController.dispose();
+    super.dispose();
+  }
+
+  void _onTabTap(int index) {
+    if (index == _currentIndex) {
+      switch (index) {
+        case 1:
+          _diapersScrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+          break;
+        case 2:
+          _feedingScrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+          break;
+        case 3:
+          _weightScrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+          break;
+      }
+    }
+    setState(() => _currentIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,9 +54,9 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         onNavigateToTab: (i) => setState(() => _currentIndex = i),
         onTitleTap: goToHome,
       ),
-      DiapersView(onTitleTap: goToHome),
-      FeedingView(onTitleTap: goToHome),
-      WeightView(onTitleTap: goToHome),
+      DiapersView(onTitleTap: goToHome, scrollController: _diapersScrollController),
+      FeedingView(onTitleTap: goToHome, scrollController: _feedingScrollController),
+      WeightView(onTitleTap: goToHome, scrollController: _weightScrollController),
     ];
     return Scaffold(
       body: IndexedStack(
@@ -60,20 +89,20 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
                   onTap: () => setState(() => _currentIndex = 0),
                 ),
                 _NavItem(
-                  icon: Icons.water_drop_outlined,
-                  activeIcon: Icons.water_drop,
+                  icon: MdiIcons.humanBabyChangingTable,
+                  activeIcon: MdiIcons.humanBabyChangingTable,
                   label: 'Pañales',
                   isSelected: _currentIndex == 1,
                   color: AppTheme.primaryBlue,
-                  onTap: () => setState(() => _currentIndex = 1),
+                  onTap: () => _onTabTap(1),
                 ),
                 _NavItem(
-                  icon: Icons.local_drink_outlined,
-                  activeIcon: Icons.local_drink,
-                  label: 'Comida',
+                  icon: MdiIcons.foodAppleOutline,
+                  activeIcon: MdiIcons.foodApple,
+                  label: 'Alimentación',
                   isSelected: _currentIndex == 2,
                   color: AppTheme.primaryPink,
-                  onTap: () => setState(() => _currentIndex = 2),
+                  onTap: () => _onTabTap(2),
                 ),
                 _NavItem(
                   icon: Icons.monitor_weight_outlined,
@@ -81,7 +110,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
                   label: 'Peso',
                   isSelected: _currentIndex == 3,
                   color: AppTheme.primaryOrange,
-                  onTap: () => setState(() => _currentIndex = 3),
+                  onTap: () => _onTabTap(3),
                 ),
               ],
             ),

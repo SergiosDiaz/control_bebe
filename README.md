@@ -5,7 +5,7 @@ App Flutter para el seguimiento del bebé: peso, alimentación (pecho/biberón) 
 ## Características
 
 - **Peso**: Registro de peso con gráfica de evolución y comparación con percentiles OMS
-- **Alimentación**: Cronómetro de lactancia (teta izquierda/derecha) y registro de biberón
+- **Alimentación**: Cronómetro de lactancia (pecho izquierdo/derecho) y registro de biberón
 - **Pañales**: Control de cambios (mojado, sucio, ambos) con actualizaciones optimistas
 - **Home**: Panel resumen con tarjetas reordenables, carga paralela de datos
 - **Autenticación**: Login/registro con Firebase Auth (Google, Apple, email)

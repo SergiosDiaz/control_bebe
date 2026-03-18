@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/edit_dialog_theme.dart';
@@ -13,8 +14,9 @@ import '../../../core/models/enums.dart';
 
 class DiapersView extends ConsumerStatefulWidget {
   final VoidCallback? onTitleTap;
+  final ScrollController? scrollController;
 
-  const DiapersView({super.key, this.onTitleTap});
+  const DiapersView({super.key, this.onTitleTap, this.scrollController});
 
   @override
   ConsumerState<DiapersView> createState() => _DiapersViewState();
@@ -46,6 +48,7 @@ class _DiapersViewState extends ConsumerState<DiapersView> {
         ),
       ),
       body: SingleChildScrollView(
+        controller: widget.scrollController,
         padding: const EdgeInsets.all(20),
         child: Card(
           child: Padding(
@@ -55,7 +58,7 @@ class _DiapersViewState extends ConsumerState<DiapersView> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.water_drop, color: AppTheme.primaryBlue),
+                    Icon(MdiIcons.humanBabyChangingTable, color: AppTheme.primaryBlue),
                     const SizedBox(width: 8),
                     Text(
                       'Control de Pañales',
@@ -155,31 +158,31 @@ class _DiapersViewState extends ConsumerState<DiapersView> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Historial',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            Text(
-                              '${sorted.length} cambios',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppTheme.textLight,
-                                  ),
-                            ),
-                          ],
+                        Text(
+                          'Historial',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                         const SizedBox(height: 16),
                         ...grouped.entries.expand((e) => [
-                          Text(
-                            e.key,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.textLight,
-                                ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                e.key,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.textLight,
+                                    ),
+                              ),
+                              Text(
+                                '${e.value.length} cambio${e.value.length != 1 ? 's' : ''}',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppTheme.textLight,
+                                    ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           ...e.value.map((r) => _DiaperRecordTile(

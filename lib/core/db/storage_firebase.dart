@@ -115,6 +115,7 @@ class StorageServiceFirebase implements StorageService {
       isMale: data['isMale'] as bool,
       birthDate: DateTime.parse(data['birthDate'] as String),
       createdAt: data['createdAt'] != null ? DateTime.parse(data['createdAt'] as String) : null,
+      photoUrl: data['photoUrl'] as String?,
     );
   }
 
@@ -128,6 +129,7 @@ class StorageServiceFirebase implements StorageService {
         'isMale': profile.isMale,
         'birthDate': profile.birthDate.toIso8601String(),
         'createdAt': profile.createdAt?.toIso8601String(),
+        'photoUrl': profile.photoUrl,
       },
     }, SetOptions(merge: true));
   }
@@ -327,10 +329,11 @@ class StorageServiceFirebase implements StorageService {
     );
   }
 
+  /// Cronómetro guardado en users/{uid} (solo lo ve quien lo inició).
+  /// El registro se guarda en la familia al parar.
   @override
   Future<LactationTimer?> getActiveLactationTimer() async {
-    final familyId = await _getOrCreateFamilyId();
-    final doc = await _familyDoc(familyId).get();
+    final doc = await _userDoc.get();
     final data = doc.data()?['lactation_timer'] as Map<String, dynamic>?;
     if (data == null) return null;
     return LactationTimer(
@@ -342,8 +345,7 @@ class StorageServiceFirebase implements StorageService {
 
   @override
   Future<void> startLactationTimer(LactationSide side) async {
-    final familyId = await _getOrCreateFamilyId();
-    await _familyDoc(familyId).set({
+    await _userDoc.set({
       'lactation_timer': {
         'side': side.index,
         'startedAt': DateTime.now().toIso8601String(),
@@ -354,8 +356,7 @@ class StorageServiceFirebase implements StorageService {
   @override
   Future<LactationTimer?> stopLactationTimer() async {
     final timer = await getActiveLactationTimer();
-    final familyId = await _getOrCreateFamilyId();
-    await _familyDoc(familyId).update({'lactation_timer': FieldValue.delete()});
+    await _userDoc.update({'lactation_timer': FieldValue.delete()});
     return timer;
   }
 

@@ -5,6 +5,8 @@ class BabyProfile {
   final bool isMale;
   final DateTime birthDate;
   final DateTime? createdAt;
+  /// Foto en base64 (data:image/jpeg;base64,...) o URL de Firebase Storage
+  final String? photoUrl;
 
   BabyProfile({
     this.id,
@@ -12,6 +14,7 @@ class BabyProfile {
     required this.isMale,
     required this.birthDate,
     this.createdAt,
+    this.photoUrl,
   });
 
   BabyProfile copyWith({
@@ -20,6 +23,7 @@ class BabyProfile {
     bool? isMale,
     DateTime? birthDate,
     DateTime? createdAt,
+    String? photoUrl,
   }) =>
       BabyProfile(
         id: id ?? this.id,
@@ -27,6 +31,7 @@ class BabyProfile {
         isMale: isMale ?? this.isMale,
         birthDate: birthDate ?? this.birthDate,
         createdAt: createdAt ?? this.createdAt,
+        photoUrl: photoUrl ?? this.photoUrl,
       );
 
   /// Edad en meses decimales desde el nacimiento

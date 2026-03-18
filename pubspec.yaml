@@ -46,6 +46,9 @@ dependencies:
   # Utilidades
   intl: ^0.20.2
   font_awesome_flutter: ^10.12.0
+  material_design_icons_flutter: ^7.0.7296
+
+  image_picker: ^1.1.2
 
   # QR
   qr_flutter: ^4.1.0
@@ -114,15 +117,18 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 # Configuración de icono de la app (flutter_launcher_icons)
+# iOS: la imagen debe ser 1024x1024 px mínimo, PNG, sin transparencia (o con fondo sólido).
+# Si usas image_path_ios con una imagen de mayor resolución, se usará solo para iOS.
 flutter_launcher_icons:
   android: true
   ios: true
   remove_alpha_ios: true
+  background_color_ios: "#F8F9FA"
   web:
     generate: true
-  image_path: "assets/images/app_icon.png"
+  image_path: "assets/images/icon_launcher.png"
   adaptive_icon_background: "#F8F9FA"
-  adaptive_icon_foreground: "assets/images/app_icon.png"
+  adaptive_icon_foreground: "assets/images/icon_launcher.png"
 
 # Configuración de splash screen nativo (flutter_native_splash)
 flutter_native_splash:

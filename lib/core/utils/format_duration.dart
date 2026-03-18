@@ -4,7 +4,7 @@ String formatMinutes(int totalMinutes) {
   final h = totalMinutes ~/ 60;
   final m = totalMinutes % 60;
   if (m == 0) return '${h}h';
-  return '${h}h ${m} min';
+  return '${h}h $m min';
 }
 
 /// Formatea segundos a texto con horas si >= 3600: "1h 40m 30s" o "90m 30s".

@@ -1,9 +1,14 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format_duration.dart';
+import '../../../core/utils/photo_picker.dart';
 import '../../../core/db/isar_service.dart';
 import '../../../core/models/baby_profile.dart';
 import '../../../core/models/diaper_record.dart';
@@ -26,6 +31,7 @@ class HomeView extends ConsumerStatefulWidget {
 class _HomeViewState extends ConsumerState<HomeView> {
   List<String> _cardOrder = ['weight', 'feeding', 'diapers'];
   BabyProfile? _cachedBaby;
+  int _homeDataKey = 0;
   final _sabiasQueService = SabiasQueServiceDefault();
 
   @override
@@ -46,6 +52,37 @@ class _HomeViewState extends ConsumerState<HomeView> {
     newOrder.insert(newIndex, item);
     setState(() => _cardOrder = newOrder);
     await IsarService.setHomeCardOrder(newOrder);
+  }
+
+  Future<void> _handlePhotoTap(BabyProfile? baby) async {
+    if (baby == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Configura primero el perfil del bebé en Ajustes'),
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      final photoUrl = await pickAndProcessBabyPhoto();
+      if (photoUrl == null || !mounted) return;
+      final updated = baby.copyWith(photoUrl: photoUrl);
+      await IsarService.saveBabyProfile(updated);
+      if (mounted) setState(() => _homeDataKey++);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto actualizada')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al subir la foto: $e')),
+        );
+      }
+    }
   }
 
   void _navigateTo(String screen) {
@@ -86,10 +123,11 @@ class _HomeViewState extends ConsumerState<HomeView> {
         ),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
+        key: ValueKey(_homeDataKey),
         future: _loadHomeData(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const _HomeLoadingState();
           }
           final data = snapshot.data!;
           return Column(
@@ -100,6 +138,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                 child: _BabyProfileCard(
                   baby: data['baby'] as BabyProfile?,
                   sabiasQueText: data['sabiasQue'] as String?,
+                  onPhotoTap: () => _handlePhotoTap(data['baby'] as BabyProfile?),
                   onSettingsTap: () async {
                     await Navigator.push(
                       context,
@@ -121,8 +160,9 @@ class _HomeViewState extends ConsumerState<HomeView> {
                 child: Stack(
                   children: [
                     ReorderableListView(
+                      buildDefaultDragHandles: false,
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 56),
-                  onReorder: _onReorder,
+                      onReorder: _onReorder,
                       proxyDecorator: (child, index, animation) => Material(
                         elevation: 4,
                         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
@@ -240,8 +280,8 @@ class _HomeViewState extends ConsumerState<HomeView> {
     if (lastFeeding != null) {
       lastFeedingMinutesAgo = DateTime.now().difference(lastFeeding.dateTime).inMinutes;
       lastFeedingType = switch (lastFeeding.type) {
-        FeedingType.leftBreast => 'Teta Izquierda',
-        FeedingType.rightBreast => 'Teta Derecha',
+        FeedingType.leftBreast => 'Izquierda',
+        FeedingType.rightBreast => 'Derecha',
         FeedingType.bottle => 'Biberón',
       };
     }
@@ -271,8 +311,8 @@ class _HomeViewState extends ConsumerState<HomeView> {
     if (lastDiaper != null) {
       lastDiaperMinutesAgo = DateTime.now().difference(lastDiaper.dateTime).inMinutes;
       lastDiaperType = switch (lastDiaper.type) {
-        DiaperType.wet => 'Solo Mojado',
-        DiaperType.dirty => 'Solo Sucio',
+        DiaperType.wet => 'Mojado',
+        DiaperType.dirty => 'Sucio',
         DiaperType.both => 'Ambos',
       };
     }
@@ -317,13 +357,48 @@ class _HomeViewState extends ConsumerState<HomeView> {
 class _BabyProfileCard extends StatelessWidget {
   final BabyProfile? baby;
   final String? sabiasQueText;
+  final VoidCallback? onPhotoTap;
   final VoidCallback? onSettingsTap;
 
   const _BabyProfileCard({
     this.baby,
     this.sabiasQueText,
+    this.onPhotoTap,
     this.onSettingsTap,
   });
+
+  Widget _buildPhotoImage(String photoUrl, bool isMale) {
+    if (photoUrl.startsWith('data:')) {
+      try {
+        final base64 = photoUrl.split(',').last;
+        final bytes = base64Decode(base64);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          width: 56,
+          height: 56,
+          errorBuilder: (_, _, _) => Icon(
+            isMale ? Icons.face : Icons.face_3,
+            color: AppTheme.textLight,
+            size: 32,
+          ),
+        );
+      } catch (_) {
+        return Icon(isMale ? Icons.face : Icons.face_3, color: AppTheme.textLight, size: 32);
+      }
+    }
+    return Image.network(
+      photoUrl,
+      fit: BoxFit.cover,
+      width: 56,
+      height: 56,
+      errorBuilder: (_, _, _) => Icon(
+        isMale ? Icons.face : Icons.face_3,
+        color: AppTheme.textLight,
+        size: 32,
+      ),
+    );
+  }
 
   String _formatAge(DateTime birthDate) {
     final totalDays = DateTime.now().difference(birthDate).inDays;
@@ -353,18 +428,59 @@ class _BabyProfileCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: AppTheme.fieldBackground,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.fieldBorder, width: 1.5),
-                  ),
-                  child: Icon(
-                    isMale ? Icons.face : Icons.face_3,
-                    color: AppTheme.textLight,
-                    size: 32,
+                GestureDetector(
+                  onTap: onPhotoTap,
+                  child: SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppTheme.fieldBackground,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppTheme.fieldBorder, width: 1.5),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: baby?.photoUrl != null && baby!.photoUrl!.isNotEmpty
+                              ? _buildPhotoImage(baby!.photoUrl!, isMale)
+                              : Icon(
+                                  isMale ? Icons.face : Icons.face_3,
+                                  color: AppTheme.textLight,
+                                  size: 32,
+                                ),
+                        ),
+                        if (onPhotoTap != null && (baby?.photoUrl == null || baby!.photoUrl!.isEmpty))
+                          Positioned(
+                            right: -2,
+                            bottom: -2,
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryPink,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 3,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.add,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -458,6 +574,52 @@ class _BabyProfileCard extends StatelessWidget {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Estado de carga visual para la pantalla de inicio.
+class _HomeLoadingState extends StatelessWidget {
+  const _HomeLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/images/app_icon.png',
+              width: 80,
+              height: 80,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => Icon(
+                Icons.child_care,
+                size: 80,
+                color: AppTheme.primaryPink,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Cargando tus datos...',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppTheme.textLight,
+                  ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: 160,
+              child: LinearProgressIndicator(
+                backgroundColor: AppTheme.fieldBackground,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryPink),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
           ],
         ),
       ),
@@ -654,7 +816,7 @@ class _FeedingCard extends StatelessWidget {
       key: key,
       cardKey: key,
       index: index,
-      icon: Icons.local_drink,
+      icon: MdiIcons.foodApple,
       iconColor: AppTheme.primaryPink,
       title: 'Alimentación Hoy',
       onTap: onTap,
@@ -781,7 +943,7 @@ class _DiapersCard extends StatelessWidget {
       key: key,
       cardKey: key,
       index: index,
-      icon: Icons.water_drop,
+      icon: MdiIcons.humanBabyChangingTable,
       iconColor: AppTheme.primaryBlue,
       title: 'Pañales Hoy',
       onTap: onTap,
@@ -1010,7 +1172,7 @@ class _HomeCard extends StatelessWidget {
                 Center(
                   child: ReorderableDragStartListener(
                     index: index,
-                    child: Icon(Icons.drag_handle, color: AppTheme.textLight, size: 24),
+                    child: FaIcon(FontAwesomeIcons.gripVertical, color: AppTheme.textLight, size: 24),
                   ),
                 ),
               ],

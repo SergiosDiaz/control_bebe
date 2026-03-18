@@ -72,6 +72,7 @@ class StorageServiceWeb implements StorageService {
       'isMale': profile.isMale,
       'birthDate': profile.birthDate.toIso8601String(),
       'createdAt': profile.createdAt?.toIso8601String(),
+      'photoUrl': profile.photoUrl,
     }));
   }
 
@@ -265,6 +266,7 @@ class StorageServiceWeb implements StorageService {
       isMale: m['isMale'] as bool,
       birthDate: DateTime.parse(m['birthDate'] as String),
       createdAt: m['createdAt'] != null ? DateTime.parse(m['createdAt'] as String) : null,
+      photoUrl: m['photoUrl'] as String?,
     );
   }
 

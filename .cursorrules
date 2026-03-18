@@ -10,7 +10,7 @@ Expert in Dart, Flutter, and iOS-native configurations.
 ## Reglas de Negocio (MVP):
 - Single Baby: Solo un perfil de bebé.
 - Unidades: Siempre 'kg' para peso y 'ml' para biberón.
-- Cronómetro de Lactancia: Al pulsar "Teta Izquierda/Derecha", inicia un Timer en vivo. El registro se guarda al detenerlo.
+- Cronómetro de Lactancia: Al pulsar "Pecho Izquierdo/Derecho", inicia un Timer en vivo. El registro se guarda al detenerlo.
 - Percentiles: Implementar lógica para comparar el peso registrado con las tablas simplificadas de la OMS (Weight-for-age).
 
 ## Guía de Estilo Visual (Basado en capturas):
