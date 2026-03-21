@@ -4,9 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/auth/auth_service.dart';
-import '../../../core/db/isar_service.dart';
-import '../../../features/onboarding/views/onboarding_view.dart';
-import '../../../features/home/views/main_navigation.dart';
 
 class RegisterView extends ConsumerStatefulWidget {
   const RegisterView({super.key});
@@ -45,16 +42,8 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
         _passwordController.text,
       );
       if (mounted) {
-        final needsOnboarding = await IsarService.needsOnboarding();
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => needsOnboarding
-                ? const OnboardingView()
-                : const MainNavigation(),
-          ),
-          (route) => false,
-        );
+        // Volver a la raíz para que [AuthWrapper] siga activo y muestre onboarding o inicio.
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } on FirebaseAuthException catch (e) {
       setState(() {
@@ -138,7 +127,7 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
                     color: AppTheme.cardBackground,
-                    borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                    borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.06),

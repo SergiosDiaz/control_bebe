@@ -441,14 +441,27 @@ class StorageServiceFirebase implements StorageService {
 
   @override
   Future<void> joinFamily(String familyId) async {
-    final doc = await _familyDoc(familyId).get();
-    if (!doc.exists) {
-      throw StateError('Familia no encontrada');
-    }
+    // Lista literal en el update (no arrayUnion): las reglas comparan before/after
+    // con size/hasAll; el sentinel de arrayUnion a veces provoca permission-denied.
     await _firestore.runTransaction((tx) async {
-      tx.update(_familyDoc(familyId), {
-        'members': FieldValue.arrayUnion([_uid]),
-      });
+      final snap = await tx.get(_familyDoc(familyId));
+      if (!snap.exists) {
+        throw StateError('Familia no encontrada');
+      }
+      final data = snap.data() ?? {};
+      final raw = data['members'];
+      final members = <String>[];
+      if (raw is List) {
+        for (final e in raw) {
+          if (e == null) continue;
+          final s = e.toString();
+          if (!members.contains(s)) members.add(s);
+        }
+      }
+      if (!members.contains(_uid)) {
+        members.add(_uid);
+        tx.update(_familyDoc(familyId), {'members': members});
+      }
       tx.set(_userDoc, {'familyId': familyId}, SetOptions(merge: true));
     });
   }

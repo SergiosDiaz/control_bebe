@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -30,11 +31,17 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
   bool _processing = false;
   String? _error;
 
-  static String _joinFailureDescription(Object error) {
+  static String _joinFailureDescription(Object error, StackTrace stackTrace) {
     final technical = _technicalErrorText(error);
     final summary = _joinFailureSummary(error);
-    if (technical == summary) return summary;
-    return '$summary\n\nDetalle: $technical';
+    final String body;
+    if (technical == summary) {
+      body = summary;
+    } else {
+      body = '$summary\n\nDetalle: $technical';
+    }
+    // Mismo contenido que debugPrint en _onDetect, visible en la UI para diagnóstico.
+    return '$body\n\n[QR join] $error\n$stackTrace';
   }
 
   static String _joinFailureSummary(Object error) {
@@ -97,7 +104,7 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
       if (mounted) {
         setState(() {
           _processing = false;
-          _error = _joinFailureDescription(e);
+          _error = _joinFailureDescription(e, st);
         });
       }
     }
@@ -109,7 +116,7 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
     setState(() {
       _processing = false;
       _error =
-          'Fallo al leer o decodificar el código.\n\nDetalle: ${error.toString()}';
+          'Fallo al leer o decodificar el código.\n\nDetalle: ${error.toString()}\n\n[QR decode] $error\n$stackTrace';
     });
   }
 
@@ -153,70 +160,74 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
         backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onBack,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          systemOverlayStyle: SystemUiOverlayStyle.light,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: widget.onBack,
+          ),
+          title: const Text('Escanear código QR'),
         ),
-        title: const Text('Escanear código QR'),
-      ),
-      body: Stack(
-        children: [
-          MobileScanner(
+        body: Stack(
+          children: [
+            MobileScanner(
             controller: _controller,
             onDetect: _onDetect,
             onDetectError: _onDetectError,
             errorBuilder: _cameraErrorWidget,
-          ),
-          Center(
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white54, width: 2),
-                borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
-              ),
-              child: const SizedBox.expand(),
             ),
-          ),
-          Positioned(
-            bottom: 40,
-            left: AppTheme.screenEdgePadding,
-            right: AppTheme.screenEdgePadding,
-            child: Column(
-              children: [
-                Text(
-                  widget.hintText,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
+            Center(
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white54, width: 2),
+                  borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
                 ),
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
-                    ),
-                    child: SelectableText(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                  ),
-                ],
-                if (_processing) ...[
-                  const SizedBox(height: 24),
-                  const CircularProgressIndicator(color: Colors.white),
-                ],
-              ],
+                child: const SizedBox.expand(),
+              ),
             ),
-          ),
-        ],
+            Positioned(
+              bottom: 40,
+              left: AppTheme.screenEdgePadding,
+              right: AppTheme.screenEdgePadding,
+              child: Column(
+                children: [
+                  Text(
+                    widget.hintText,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                      ),
+                      child: SelectableText(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                  if (_processing) ...[
+                    const SizedBox(height: 24),
+                    const CircularProgressIndicator(color: Colors.white),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

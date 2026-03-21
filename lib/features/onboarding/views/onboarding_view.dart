@@ -9,10 +9,12 @@ import '../../../core/db/isar_service.dart';
 import '../../../core/firebase/firebase_service.dart';
 import '../../../core/models/baby_profile.dart';
 import '../../auth/views/family_qr_join_screen.dart';
-import '../../home/views/main_navigation.dart';
 
 class OnboardingView extends ConsumerStatefulWidget {
-  const OnboardingView({super.key});
+  /// Si no es null, se llama al terminar (perfil creado o unión por QR). Evita reemplazar la raíz del [Navigator].
+  final Future<void> Function()? onFinished;
+
+  const OnboardingView({super.key, this.onFinished});
 
   @override
   ConsumerState<OnboardingView> createState() => _OnboardingViewState();
@@ -36,12 +38,11 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
     super.dispose();
   }
 
-  void _goToMain() {
+  Future<void> _notifyFinished() async {
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MainNavigation()),
-      (route) => false,
-    );
+    if (widget.onFinished != null) {
+      await widget.onFinished!();
+    }
   }
 
   Future<void> _completeCreate() async {
@@ -86,7 +87,7 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
       await IsarService.saveBabyProfile(profile);
       await IsarService.completeOnboarding();
       if (!mounted) return;
-      _goToMain();
+      await _notifyFinished();
     } on FirebaseException catch (e) {
       debugPrint('[onboarding] guardar perfil: $e');
       if (mounted) {
@@ -113,7 +114,7 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
   Future<void> _joinAndComplete(String familyId) async {
     await IsarService.joinFamily(familyId);
     await IsarService.completeOnboarding();
-    _goToMain();
+    await _notifyFinished();
   }
 
   Future<void> _confirmExitToLogin() async {
@@ -145,6 +146,9 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
     if (go != true || !mounted) return;
     try {
       await AuthService.signOut();
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

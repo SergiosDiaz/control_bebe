@@ -6,9 +6,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/auth/auth_service.dart';
 import '../../../core/firebase/firebase_service.dart';
-import '../../../features/onboarding/views/onboarding_view.dart';
-import '../../../features/home/views/main_navigation.dart';
-import '../../../core/db/isar_service.dart';
 import 'register_view.dart';
 
 class LoginView extends ConsumerStatefulWidget {
@@ -28,7 +25,11 @@ class _LoginViewState extends ConsumerState<LoginView> {
   final _passwordFocusNode = FocusNode();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  /// Solo entrada anónima para QR: no usa [_isLoading] para no bloquear toda la tarjeta ni el botón principal.
+  bool _guestQrLoading = false;
   String? _errorMessage;
+
+  bool get _anyAuthBusy => _isLoading || _guestQrLoading;
 
   void _onFocusChange() => setState(() {});
 
@@ -108,7 +109,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
       return;
     }
     setState(() {
-      _isLoading = true;
+      _guestQrLoading = true;
       _errorMessage = null;
     });
     try {
@@ -116,7 +117,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
+        _guestQrLoading = false;
         _errorMessage = switch (e.code) {
           'operation-not-allowed' =>
             'Invitado no disponible. En Firebase Console → Authentication → Sign-in method, activa "Anónimo".',
@@ -126,7 +127,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
+        _guestQrLoading = false;
         _errorMessage = 'No se pudo entrar como invitado';
       });
     }
@@ -159,15 +160,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
 
   Future<void> _navigateToApp() async {
     if (!mounted) return;
-    final needsOnboarding = await IsarService.needsOnboarding();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) =>
-            needsOnboarding ? const OnboardingView() : const MainNavigation(),
-      ),
-      (route) => false,
-    );
+    // Mantener [AuthWrapper] como ruta raíz (escucha auth). Onboarding / inicio lo decide AppInitializer.
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   String _mapAuthError(String code) {
@@ -328,7 +322,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 16),
                   _buildHeader(),
                   const SizedBox(height: 40),
                   _buildCard(),
@@ -356,8 +350,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
           ),
           child: Image.asset(
             'assets/images/app_icon.png',
-            width: 200,
-            height: 200,
+            width: 168,
+            height: 168,
             fit: BoxFit.contain,
           ),
         ),
@@ -387,7 +381,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
+        border: Border.all(color: AppTheme.cardOutline),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
@@ -450,7 +445,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: _isLoading ? null : _openForgotPasswordDialog,
+                onPressed: _anyAuthBusy ? null : _openForgotPasswordDialog,
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                   minimumSize: Size.zero,
@@ -478,7 +473,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
               height: _primaryActionHeight,
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _signInWithEmail,
+                onPressed: _anyAuthBusy ? null : _signInWithEmail,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, _primaryActionHeight),
                   maximumSize: const Size(double.infinity, _primaryActionHeight),
@@ -508,8 +503,17 @@ class _LoginViewState extends ConsumerState<LoginView> {
               height: _primaryActionHeight,
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _isLoading ? null : _signInAsGuestForQr,
-                icon: Icon(Icons.qr_code_scanner, color: AppTheme.primaryBlue),
+                onPressed: _anyAuthBusy ? null : _signInAsGuestForQr,
+                icon: _guestQrLoading
+                    ? SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.primaryBlue,
+                        ),
+                      )
+                    : Icon(Icons.qr_code_scanner, color: AppTheme.primaryBlue),
                 label: Text(
                   'Unirme con código QR (sin cuenta)',
                   style: TextStyle(
@@ -560,7 +564,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _signInWithGoogle,
+                    onPressed: _anyAuthBusy ? null : _signInWithGoogle,
                     icon: const FaIcon(
                       FontAwesomeIcons.google,
                       size: 20,
@@ -586,7 +590,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _signInWithApple,
+                    onPressed: _anyAuthBusy ? null : _signInWithApple,
                     icon: const Icon(
                       Icons.apple,
                       size: 24,

@@ -478,15 +478,11 @@ class _DiaperRecordTile extends StatelessWidget {
         AppTheme.diaperHistoryBothAccent,
       ),
     };
-    final borderRadius = BorderRadius.circular(AppTheme.cardRadius);
+    final borderRadius = BorderRadius.circular(AppTheme.homeCardRadius);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: borderRadius,
-        side: BorderSide(color: AppTheme.fieldBorder.withValues(alpha: 0.65)),
-      ),
       child: ClipRRect(
         borderRadius: borderRadius,
         child: IntrinsicHeight(

@@ -233,10 +233,11 @@ class _HomeViewState extends ConsumerState<HomeView> {
                   ),
                 ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppTheme.screenEdgePadding,
-                    AppTheme.contentPaddingTopAfterTitleBar,
-                    AppTheme.screenEdgePadding,
+                  padding: EdgeInsets.fromLTRB(
+                    AppTheme.screenEdgePadding + AppTheme.cardOuterMargin,
+                    AppTheme.contentPaddingTopAfterTitleBar +
+                        AppTheme.cardOuterMargin,
+                    AppTheme.screenEdgePadding + AppTheme.cardOuterMargin,
                     100,
                   ),
                   sliver: SliverList(
@@ -574,7 +575,7 @@ class _ProfileSummaryCard extends StatelessWidget {
       color: AppTheme.cardBackground,
       elevation: AppTheme.cardElevation,
       shadowColor: Colors.black12,
-      borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
+      shape: AppTheme.homeCardShapeRounded,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
         child: Column(
@@ -594,9 +595,10 @@ class _ProfileSummaryCard extends StatelessWidget {
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Misma anchura que gap + icono: el nombre queda centrado en la tarjeta sin contar el símbolo.
-                const SizedBox(width: 38),
+                const SizedBox(width: 24),
                 Text(
                   name,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -605,13 +607,16 @@ class _ProfileSummaryCard extends StatelessWidget {
                     height: 1.15,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Icon(
-                  isMale ? Icons.male : Icons.female,
-                  color: isMale
-                      ? AppTheme.genderMaleBabyBlue
-                      : AppTheme.genderFemalePink,
-                  size: 28,
+                const SizedBox(width: 2),
+                Transform.translate(
+                  offset: const Offset(0, -4),
+                  child: Icon(
+                    isMale ? Icons.male : Icons.female,
+                    color: isMale
+                        ? AppTheme.genderMaleBabyBlue
+                        : AppTheme.genderFemalePink,
+                    size: 22,
+                  ),
                 ),
               ],
             ),
@@ -913,7 +918,13 @@ class _UltimaTomaCardState extends State<_UltimaTomaCard>
       color: AppTheme.palettePrimary,
       elevation: AppTheme.cardElevation,
       shadowColor: Colors.black26,
-      borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
+        side: BorderSide(
+          color: Colors.white.withValues(alpha: 0.28),
+          width: 1,
+        ),
+      ),
       child: InkWell(
         onTap: widget.onTap,
         borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
@@ -1008,7 +1019,7 @@ class _PesoResumenCard extends StatelessWidget {
       color: AppTheme.cardBackground,
       elevation: AppTheme.cardElevation,
       shadowColor: Colors.black12,
-      borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
+      shape: AppTheme.homeCardShapeRounded,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
@@ -1111,7 +1122,7 @@ class _PanalesResumenCard extends StatelessWidget {
       color: AppTheme.cardBackground,
       elevation: AppTheme.cardElevation,
       shadowColor: Colors.black12,
-      borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
+      shape: AppTheme.homeCardShapeRounded,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
@@ -1232,6 +1243,7 @@ class _ConsejoDelDiaCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
+        border: Border.all(color: AppTheme.cardOutline),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -1387,7 +1399,7 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
       color: AppTheme.cardBackground,
       elevation: AppTheme.cardElevation,
       shadowColor: Colors.black12,
-      borderRadius: rr,
+      shape: AppTheme.homeCardShapeRounded,
       child: _ShimmerWrap(
         animation: _shimmer,
         borderRadius: rr,
@@ -1505,7 +1517,10 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
           color: Color.lerp(AppTheme.palettePrimary, Colors.white, 0.62)!,
           elevation: AppTheme.cardElevation,
           shadowColor: Colors.black26,
-          borderRadius: rr,
+          shape: RoundedRectangleBorder(
+            borderRadius: rr,
+            side: AppTheme.cardOutlineSide,
+          ),
           child: _ShimmerWrap(
             animation: _shimmer,
             borderRadius: rr,
@@ -1535,7 +1550,7 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
       color: AppTheme.cardBackground,
       elevation: AppTheme.cardElevation,
       shadowColor: Colors.black12,
-      borderRadius: rr,
+      shape: AppTheme.homeCardShapeRounded,
       child: _ShimmerWrap(
         animation: _shimmer,
         borderRadius: rr,
@@ -1552,7 +1567,10 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
     return Material(
       color: cardColor,
       elevation: 0,
-      borderRadius: rr,
+      shape: RoundedRectangleBorder(
+        borderRadius: rr,
+        side: AppTheme.cardOutlineSide,
+      ),
       child: _ShimmerWrap(
         animation: _shimmer,
         borderRadius: rr,

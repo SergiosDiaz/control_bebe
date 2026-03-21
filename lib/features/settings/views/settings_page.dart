@@ -10,8 +10,6 @@ import '../../../core/services/next_feeding_notification_service.dart';
 import '../../../core/utils/feeding_interval_labels.dart';
 import '../../../core/auth/auth_service.dart';
 import '../../../core/models/baby_profile.dart';
-import '../../auth/views/login_view.dart';
-
 class SettingsPage extends ConsumerStatefulWidget {
   final BabyProfile? initialBaby;
   final void Function(BabyProfile profile)? onProfileSaved;
@@ -314,10 +312,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         return;
       }
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginView()),
-          (route) => false,
-        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     }
   }
@@ -673,7 +668,7 @@ class _QRButtonState extends State<_QRButton> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+              borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
               border: Border.all(color: AppTheme.fieldBorder),
             ),
             child: Column(

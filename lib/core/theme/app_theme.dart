@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
@@ -89,13 +90,44 @@ class AppTheme {
   /// Espacio bajo [MainAppTitleBar] hasta el primer widget (misma referencia que Home).
   static const double contentPaddingTopAfterTitleBar = 8;
 
+  /// Radio de botones, campos y piezas compactas.
   static const double cardRadius = 24;
+  /// Radio de fichas / [Card] principales (misma curva que Home).
   static const double homeCardRadius = 32;
   static const double cardElevation = 0.5;
+
+  /// Margen exterior por defecto de [Card] en Material 3 (las pestañas lo aplican; Home debe compensarlo).
+  static const double cardOuterMargin = 4;
+
+  /// Contorno fino de tarjetas (misma referencia que historial alimentación/pañales).
+  static Color get cardOutline => fieldBorder.withValues(alpha: 0.65);
+  static BorderSide get cardOutlineSide =>
+      BorderSide(color: cardOutline, width: 1);
+
+  static RoundedRectangleBorder cardShapeRounded(
+          [double radius = homeCardRadius]) =>
+      RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radius),
+        side: cardOutlineSide,
+      );
+
+  static RoundedRectangleBorder get homeCardShapeRounded =>
+      cardShapeRounded(homeCardRadius);
   static const double dialogRadius = 28;
   static const double fieldRadius = 18;
   static const Color fieldBackground = Color(0xFFF0F4F5);
   static const Color fieldBorder = Color(0xFFE0E7EA);
+
+  /// Hora, batería y notificaciones legibles sobre fondo claro (iOS + Android).
+  static const SystemUiOverlayStyle systemUiForLightBackground =
+      SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.dark,
+    systemNavigationBarColor: background,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    systemNavigationBarDividerColor: Colors.transparent,
+  );
 
   static ThemeData get lightTheme {
     final colorScheme = ColorScheme.fromSeed(
@@ -144,6 +176,7 @@ class AppTheme {
         foregroundColor: textHeading,
         elevation: 0,
         centerTitle: true,
+        systemOverlayStyle: systemUiForLightBackground,
         titleTextStyle: GoogleFonts.inter(
           fontSize: 18,
           fontWeight: FontWeight.w700,
@@ -153,9 +186,8 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: cardBackground,
         elevation: cardElevation,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(cardRadius),
-        ),
+        margin: const EdgeInsets.all(cardOuterMargin),
+        shape: cardShapeRounded(homeCardRadius),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
