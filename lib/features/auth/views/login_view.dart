@@ -322,8 +322,10 @@ class _LoginViewState extends ConsumerState<LoginView> {
         child: SafeArea(
           bottom: false,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.screenEdgePadding,
+            padding: EdgeInsets.only(
+              left: AppTheme.screenEdgePadding,
+              right: AppTheme.screenEdgePadding,
+              bottom: AppTheme.safeBottomPadding(context),
             ),
             child: Form(
               key: _formKey,

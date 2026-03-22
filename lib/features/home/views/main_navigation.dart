@@ -157,9 +157,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
               top: false,
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 4,
+                padding: EdgeInsets.fromLTRB(
+                  4,
+                  10,
+                  4,
+                  10 + AppTheme.safeBottomPadding(context),
                 ),
                 child: Row(
                   children: [

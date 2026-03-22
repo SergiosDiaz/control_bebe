@@ -215,11 +215,11 @@ class _ChoiceScreen extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             AppTheme.screenEdgePadding,
             24,
             AppTheme.screenEdgePadding,
-            24,
+            24 + AppTheme.extraBottomSpacing,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -515,11 +515,12 @@ class _CreateBabyScreen extends StatelessWidget {
               top: false,
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   AppTheme.screenEdgePadding,
                   0,
                   AppTheme.screenEdgePadding,
-                  AppTheme.screenEdgePadding,
+                  AppTheme.screenEdgePadding +
+                      AppTheme.safeBottomPadding(context),
                 ),
                 child: SizedBox(
                   height: 52,

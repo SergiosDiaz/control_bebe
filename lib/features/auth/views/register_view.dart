@@ -97,8 +97,10 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
         child: SafeArea(
           bottom: false,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.screenEdgePadding,
+            padding: EdgeInsets.only(
+              left: AppTheme.screenEdgePadding,
+              right: AppTheme.screenEdgePadding,
+              bottom: AppTheme.safeBottomPadding(context),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

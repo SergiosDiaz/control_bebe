@@ -18,6 +18,7 @@ import '../../../core/models/feeding_record.dart';
 import '../../../core/models/weight_record.dart';
 import '../../settings/views/settings_page.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/utils/weight_daily_trend.dart';
 import '../../../core/services/sabias_que_service.dart';
 import '../../../core/providers/record_stream_providers.dart';
 import '../../../core/services/next_feeding_notification_service.dart';
@@ -83,25 +84,30 @@ class _HomeViewState extends ConsumerState<HomeView> {
       builder: (sheetCtx) {
         return SafeArea(
           bottom: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Elegir foto'),
-                onTap: () => Navigator.pop(sheetCtx, 'pick'),
-              ),
-              if (hasPhoto)
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: AppTheme.safeBottomPadding(sheetCtx),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 ListTile(
-                  leading: Icon(Icons.delete_outline, color: Theme.of(sheetCtx).colorScheme.error),
-                  title: Text(
-                    'Quitar foto del perfil',
-                    style: TextStyle(color: Theme.of(sheetCtx).colorScheme.error),
-                  ),
-                  onTap: () => Navigator.pop(sheetCtx, 'remove'),
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: const Text('Elegir foto'),
+                  onTap: () => Navigator.pop(sheetCtx, 'pick'),
                 ),
-            ],
+                if (hasPhoto)
+                  ListTile(
+                    leading: Icon(Icons.delete_outline, color: Theme.of(sheetCtx).colorScheme.error),
+                    title: Text(
+                      'Quitar foto del perfil',
+                      style: TextStyle(color: Theme.of(sheetCtx).colorScheme.error),
+                    ),
+                    onTap: () => Navigator.pop(sheetCtx, 'remove'),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -239,7 +245,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                     AppTheme.contentPaddingTopAfterTitleBar +
                         AppTheme.cardOuterMargin,
                     AppTheme.screenEdgePadding + AppTheme.cardOuterMargin,
-                    100,
+                    100 + AppTheme.extraBottomSpacing,
                   ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
@@ -261,7 +267,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                           onTapDiapers: () => _navigateTo('diapers'),
                           liveFeedingClock: widget.isActiveTab,
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 12),
                         _ConsejoDelDiaCard(text: data['sabiasQue'] as String?),
                       ],
                     ]),
@@ -296,15 +302,10 @@ class _HomeViewState extends ConsumerState<HomeView> {
     final lastWeight = weightRecords.isNotEmpty ? weightRecords.first : null;
     final prevWeight = weightRecords.length > 1 ? weightRecords[1] : null;
 
-    int? weeklyDeltaG;
+    double? dailyTrendGPerDay;
     if (lastWeight != null && prevWeight != null) {
-      final daysSinceWeigh = DateTime.now()
-          .difference(lastWeight.dateTime)
-          .inDays;
-      if (daysSinceWeigh <= 7) {
-        weeklyDeltaG = ((lastWeight.weightKg - prevWeight.weightKg) * 1000)
-            .round();
-      }
+      dailyTrendGPerDay =
+          dailyWeightTrendGramsPerDay(lastWeight, prevWeight);
     }
 
     String? lastFeedingDetail;
@@ -355,7 +356,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
       'sabiasQue': sabiasQue,
       'weight': _WeightData(
         currentKg: lastWeight?.weightKg,
-        weeklyDeltaGrams: weeklyDeltaG,
+        dailyTrendGramsPerDay: dailyTrendGPerDay,
         lastRecordedAt: lastWeight?.dateTime,
       ),
       'feeding': _FeedingData(
@@ -788,15 +789,15 @@ class _ResumenDeHoyBlock extends StatelessWidget {
           children: [
             Text(
               'Resumen de Hoy',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w800,
                 color: Colors.black,
                 height: 1.2,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: AppTheme.softPrimaryFill,
                 borderRadius: BorderRadius.circular(20),
@@ -811,13 +812,13 @@ class _ResumenDeHoyBlock extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _UltimaTomaCard(
           data: feeding,
           onTap: onTapFeeding,
           liveClockActive: liveFeedingClock,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -825,7 +826,7 @@ class _ResumenDeHoyBlock extends StatelessWidget {
               Expanded(
                 child: _PesoResumenCard(data: weight, onTap: onTapWeight),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: _PanalesResumenCard(data: diapers, onTap: onTapDiapers),
               ),
@@ -930,7 +931,7 @@ class _UltimaTomaCardState extends State<_UltimaTomaCard>
         onTap: widget.onTap,
         borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
+          padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -948,17 +949,17 @@ class _UltimaTomaCardState extends State<_UltimaTomaCard>
                                   fontWeight: FontWeight.w600,
                                 ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
                             'Hace ${formatMinutes(minutesAgo!)}',
-                            style: Theme.of(context).textTheme.headlineSmall
+                            style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
                                   height: 1.15,
                                 ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           Text(
                             data.lastFeedingDetail!,
                             style: Theme.of(context).textTheme.bodyMedium
@@ -968,7 +969,7 @@ class _UltimaTomaCardState extends State<_UltimaTomaCard>
                                 ),
                           ),
                           if (subHint.isNotEmpty) ...[
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Text(
                               subHint,
                               style: Theme.of(context).textTheme.labelSmall
@@ -987,11 +988,11 @@ class _UltimaTomaCardState extends State<_UltimaTomaCard>
                         ),
                       ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Icon(
                 Icons.schedule_rounded,
                 color: Colors.white.withValues(alpha: 0.9),
-                size: 44,
+                size: 38,
               ),
             ],
           ),
@@ -1014,7 +1015,7 @@ class _PesoResumenCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final trend = data.weeklyDeltaGrams;
+    final trend = data.dailyTrendGramsPerDay;
     final lastLabel = _formatLastRecorded(data.lastRecordedAt);
     return Material(
       color: AppTheme.cardBackground,
@@ -1033,12 +1034,12 @@ class _PesoResumenCard extends StatelessWidget {
                 bottom: -12,
                 child: Icon(
                   Icons.monitor_weight_rounded,
-                  size: 86,
+                  size: 72,
                   color: AppTheme.navWeightSelectedFg.withValues(alpha: 0.12),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1050,18 +1051,18 @@ class _PesoResumenCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       data.currentKg != null
                           ? '${data.currentKg!.toStringAsFixed(2)} kg'
                           : '—',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: AppTheme.textDark,
                       ),
                     ),
                     if (data.currentKg == null) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         'No hay registros de peso. Toca para añadir el primero.',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -1072,19 +1073,32 @@ class _PesoResumenCard extends StatelessWidget {
                       ),
                     ],
                     if (trend != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        '${trend >= 0 ? '+' : ''}$trend g esta semana',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: trend >= 0
-                              ? AppTheme.trendPositiveGreen
-                              : AppTheme.trendNegativeRed,
-                          fontWeight: FontWeight.w700,
+                      const SizedBox(height: 6),
+                      Text.rich(
+                        TextSpan(
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppTheme.textLight,
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                          children: [
+                            const TextSpan(text: 'Tendencia: '),
+                            TextSpan(
+                              text:
+                                  '${trend >= 0 ? '+' : ''}${trend.toStringAsFixed(1)} g/día',
+                              style: TextStyle(
+                                color: trend >= 0
+                                    ? AppTheme.trendPositiveGreen
+                                    : AppTheme.trendNegativeRed,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                     if (lastLabel != null) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         'Último: $lastLabel',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -1136,12 +1150,12 @@ class _PanalesResumenCard extends StatelessWidget {
                 bottom: -10,
                 child: Icon(
                   MdiIcons.humanBabyChangingTable,
-                  size: 80,
+                  size: 70,
                   color: AppTheme.navDiapersSelectedFg.withValues(alpha: 0.12),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1153,20 +1167,20 @@ class _PanalesResumenCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       data.lastRecordedAt == null && data.totalToday == 0
                           ? '—'
                           : (data.totalToday == 1
                               ? '1 cambio'
                               : '${data.totalToday} cambios'),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: AppTheme.textDark,
                       ),
                     ),
                     if (data.lastRecordedAt == null && data.totalToday == 0) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         'No hay pañales registrados. Toca para añadir el primero.',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -1176,7 +1190,7 @@ class _PanalesResumenCard extends StatelessWidget {
                         ),
                       ),
                     ] else ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         '${data.wetCount} mojados · ${data.dirtyCount} sucios',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -1186,7 +1200,7 @@ class _PanalesResumenCard extends StatelessWidget {
                       ),
                     ],
                     if (lastLabel != null) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         'Último: $lastLabel',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -1227,7 +1241,7 @@ class _ConsejoDelDiaCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
+      padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
@@ -1241,13 +1255,13 @@ class _ConsejoDelDiaCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Consejo del día',
+                  'Consejo del día ✨',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     color: AppTheme.tipText,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   raw,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1258,8 +1272,8 @@ class _ConsejoDelDiaCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          Icon(Icons.lightbulb_outline_rounded, size: 72, color: iconColor),
+          const SizedBox(width: 10),
+          Icon(Icons.lightbulb_outline_rounded, size: 58, color: iconColor),
         ],
       ),
     );
@@ -1365,7 +1379,7 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
         _profileCard(rr),
         const SizedBox(height: 20),
         _resumenBlock(rr),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
         _consejoCard(rr),
       ],
     );
@@ -1471,17 +1485,17 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
           children: [
             Expanded(
               child: Container(
-                height: 26,
+                height: 22,
                 decoration: BoxDecoration(
                   color: _bar,
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Container(
-              height: 28,
-              width: 92,
+              height: 26,
+              width: 88,
               decoration: BoxDecoration(
                 color: AppTheme.softPrimaryFill,
                 borderRadius: BorderRadius.circular(20),
@@ -1489,7 +1503,7 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Material(
           color: Color.lerp(AppTheme.palettePrimary, Colors.white, 0.62)!,
           elevation: AppTheme.cardElevation,
@@ -1502,18 +1516,18 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
             animation: _shimmer,
             borderRadius: rr,
             child: const SizedBox(
-              height: 92,
+              height: 80,
               width: double.infinity,
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(child: _metricSkeleton(rr)),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(child: _metricSkeleton(rr)),
             ],
           ),
@@ -1532,7 +1546,7 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
         animation: _shimmer,
         borderRadius: rr,
         child: const SizedBox(
-          height: 118,
+          height: 108,
           width: double.infinity,
         ),
       ),
@@ -1552,7 +1566,7 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
         animation: _shimmer,
         borderRadius: rr,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
+          padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
           child: Row(
             children: [
               Expanded(
@@ -1560,35 +1574,35 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      height: 22,
-                      width: 168,
+                      height: 20,
+                      width: 152,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Container(
-                      height: 16,
+                      height: 15,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.45),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Container(
-                      height: 16,
+                      height: 15,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Container(
-                      height: 16,
-                      width: 220,
+                      height: 15,
+                      width: 200,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(4),
@@ -1598,8 +1612,8 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
                 ),
               ),
               Container(
-                width: 72,
-                height: 72,
+                width: 58,
+                height: 58,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.45),
                   shape: BoxShape.circle,
@@ -1615,10 +1629,15 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
 
 class _WeightData {
   final double? currentKg;
-  final int? weeklyDeltaGrams;
+  /// Ritmo entre las dos últimas pesadas (g/día).
+  final double? dailyTrendGramsPerDay;
   final DateTime? lastRecordedAt;
 
-  _WeightData({this.currentKg, this.weeklyDeltaGrams, this.lastRecordedAt});
+  _WeightData({
+    this.currentKg,
+    this.dailyTrendGramsPerDay,
+    this.lastRecordedAt,
+  });
 }
 
 class _FeedingData {

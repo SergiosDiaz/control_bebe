@@ -87,6 +87,13 @@ class AppTheme {
   /// Margen horizontal entre el borde de pantalla y tarjetas / bloques (referencia Home).
   static const double screenEdgePadding = 20;
 
+  /// Aire extra bajo el contenido cuando `SafeArea(bottom: false)` (barra de tabs, login, etc.).
+  static const double extraBottomSpacing = 16;
+
+  /// Inset inferior del dispositivo (p. ej. home indicator) más [extraBottomSpacing].
+  static double safeBottomPadding(BuildContext context) =>
+      MediaQuery.paddingOf(context).bottom + extraBottomSpacing;
+
   /// Espacio bajo [MainAppTitleBar] hasta el primer widget (misma referencia que Home).
   static const double contentPaddingTopAfterTitleBar = 8;
 

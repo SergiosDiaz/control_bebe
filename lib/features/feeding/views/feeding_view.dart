@@ -196,11 +196,11 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
             Expanded(
               child: SingleChildScrollView(
                 controller: widget.scrollController,
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   AppTheme.screenEdgePadding,
                   AppTheme.contentPaddingTopAfterTitleBar,
                   AppTheme.screenEdgePadding,
-                  20,
+                  20 + AppTheme.safeBottomPadding(context),
                 ),
                 child: Card(
                   child: Padding(

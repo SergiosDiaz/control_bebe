@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -14,6 +16,7 @@ import '../../../core/widgets/edit_bottom_sheet.dart';
 import '../../../core/models/baby_profile.dart';
 import '../../../core/models/weight_record.dart';
 import '../../../core/percentiles_data.dart';
+import '../../../core/utils/weight_daily_trend.dart';
 
 class WeightView extends ConsumerStatefulWidget {
   final VoidCallback? onTitleTap;
@@ -86,11 +89,11 @@ class _WeightViewState extends ConsumerState<WeightView> {
                     behavior: HitTestBehavior.opaque,
                     child: SingleChildScrollView(
                       controller: widget.scrollController,
-                      padding: const EdgeInsets.fromLTRB(
+                      padding: EdgeInsets.fromLTRB(
                         AppTheme.screenEdgePadding,
                         AppTheme.contentPaddingTopAfterTitleBar,
                         AppTheme.screenEdgePadding,
-                        20,
+                        20 + AppTheme.safeBottomPadding(context),
                       ),
                       keyboardDismissBehavior:
                           ScrollViewKeyboardDismissBehavior.onDrag,
@@ -398,8 +401,8 @@ class _WeightViewState extends ConsumerState<WeightView> {
   Widget _summaryRow(List<WeightRecord> records) {
     final lastWeight = records.isNotEmpty ? records.first : null;
     final prevWeight = records.length > 1 ? records[1] : null;
-    final change = lastWeight != null && prevWeight != null
-        ? lastWeight.weightKg - prevWeight.weightKg
+    final dailyGPerDay = lastWeight != null && prevWeight != null
+        ? dailyWeightTrendGramsPerDay(lastWeight, prevWeight)
         : null;
 
     return Row(
@@ -417,12 +420,12 @@ class _WeightViewState extends ConsumerState<WeightView> {
         const SizedBox(width: 12),
         Expanded(
           child: _SummaryCard(
-            title: 'Tendencia',
-            value: change != null
-                ? '${change >= 0 ? '+' : ''}${change.toStringAsFixed(2)} kg'
+            title: 'Tendencia diaria',
+            value: dailyGPerDay != null
+                ? '${dailyGPerDay >= 0 ? '+' : ''}${dailyGPerDay.toStringAsFixed(1)} g/día'
                 : '-',
-            showTrendIcon: change != null,
-            isPositive: change != null && change >= 0,
+            showTrendIcon: dailyGPerDay != null,
+            isPositive: dailyGPerDay != null && dailyGPerDay >= 0,
           ),
         ),
       ],
@@ -521,6 +524,21 @@ class _WeightChart extends StatelessWidget {
     return date.difference(birthDate).inDays / 30.44;
   }
 
+  /// Días transcurridos desde [origin] hasta [t] (fracción de día si hay hora).
+  static double _daysSince(DateTime origin, DateTime t) {
+    return t.difference(origin).inMilliseconds /
+        Duration.millisecondsPerDay;
+  }
+
+  static double _bottomTitleInterval(double maxX) {
+    if (maxX <= 0.5) return 0.25;
+    if (maxX <= 2) return 0.5;
+    if (maxX <= 10) return 1;
+    if (maxX <= 45) return 7;
+    if (maxX <= 120) return 14;
+    return math.max(7, maxX / 6);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (records.isEmpty) {
@@ -534,14 +552,18 @@ class _WeightChart extends StatelessWidget {
 
     final sortedRecords = List<WeightRecord>.from(records)
       ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
-    final n = sortedRecords.length;
 
-    // Eje X: índice (0, 1, 2...) para mostrar fechas en el eje inferior
+    final origin = sortedRecords.first.dateTime;
+    // Eje X: días reales desde la primera pesada (espaciado coherente con el tiempo).
     final spots = sortedRecords
-        .asMap()
-        .entries
-        .map((e) => FlSpot(e.key.toDouble(), e.value.weightKg))
+        .map((r) => FlSpot(_daysSince(origin, r.dateTime), r.weightKg))
         .toList();
+
+    var xMax = spots.map((s) => s.x).reduce(math.max);
+    // El eje X termina en el último registro; sin tramo vacío a la derecha.
+    if (xMax < 1e-9) {
+      xMax = 1e-6; // mismo instante / un punto: evita maxX == minX en fl_chart
+    }
 
     final minWeight = records
         .map((r) => r.weightKg)
@@ -566,18 +588,20 @@ class _WeightChart extends StatelessWidget {
     final minY = (dataMinY - 0.5).clamp(0.0, 20.0);
     final maxY = (dataMaxY + 0.5).clamp(0.0, 20.0);
 
-    final refSpots = sortedRecords.asMap().entries.map((e) {
-      final age = _ageInMonths(e.value.dateTime);
+    final refSpots = sortedRecords.map((r) {
+      final age = _ageInMonths(r.dateTime);
       return FlSpot(
-        e.key.toDouble(),
+        _daysSince(origin, r.dateTime),
         PercentilesData.getP50Weight(isMale, age),
       );
     }).toList();
 
+    final bottomInterval = _bottomTitleInterval(xMax);
+
     return LineChart(
       LineChartData(
         minX: 0,
-        maxX: (n - 1).toDouble().clamp(1.0, double.infinity),
+        maxX: xMax,
         minY: minY,
         maxY: maxY,
         gridData: FlGridData(
@@ -604,19 +628,24 @@ class _WeightChart extends StatelessWidget {
               showTitles: true,
               reservedSize: 28,
               getTitlesWidget: (value, meta) {
-                final idx = value.round();
-                if (idx >= 0 && idx < n) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      DateFormat('d/M').format(sortedRecords[idx].dateTime),
-                      style: TextStyle(color: AppTheme.textLight, fontSize: 10),
-                    ),
-                  );
+                if (value < -1e-6 || value > xMax + 1e-6) {
+                  return const SizedBox.shrink();
                 }
-                return const SizedBox.shrink();
+                final labelDate = origin.add(
+                  Duration(
+                    milliseconds:
+                        (value * Duration.millisecondsPerDay).round(),
+                  ),
+                );
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    DateFormat('d/M').format(labelDate),
+                    style: TextStyle(color: AppTheme.textLight, fontSize: 10),
+                  ),
+                );
               },
-              interval: 1,
+              interval: bottomInterval,
             ),
           ),
           topTitles: const AxisTitles(
@@ -656,6 +685,81 @@ class _WeightChart extends StatelessWidget {
             belowBarData: BarAreaData(show: false),
           ),
         ],
+        lineTouchData: LineTouchData(
+          handleBuiltInTouches: true,
+          touchTooltipData: LineTouchTooltipData(
+            maxContentWidth: 240,
+            tooltipPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 10,
+            ),
+            tooltipRoundedRadius: 12,
+            fitInsideHorizontally: true,
+            fitInsideVertically: true,
+            getTooltipColor: (_) => Colors.white,
+            tooltipBorder: BorderSide(
+              color: Colors.black.withValues(alpha: 0.12),
+            ),
+            getTooltipItems: (List<LineBarSpot> touchedSpots) {
+              if (touchedSpots.isEmpty) return [];
+
+              final x = touchedSpots.first.x;
+              final touchedDate = origin.add(
+                Duration(
+                  milliseconds:
+                      (x * Duration.millisecondsPerDay).round(),
+                ),
+              );
+              final dateStr =
+                  DateFormat('d MMM yyyy, HH:mm', 'es').format(touchedDate);
+
+              final hasRef = refSpots.length > 1;
+              final dataBarIndex = hasRef ? 1 : 0;
+
+              double? dataKg;
+              double? refTouchedY;
+              for (final s in touchedSpots) {
+                if (s.barIndex == dataBarIndex) dataKg = s.y;
+                if (hasRef && s.barIndex == 0) refTouchedY = s.y;
+              }
+
+              var refKg = refTouchedY;
+              if (refKg == null && hasRef) {
+                refKg = PercentilesData.getP50Weight(
+                  isMale,
+                  _ageInMonths(touchedDate),
+                );
+              }
+
+              final lines = <String>[dateStr];
+              if (hasRef) {
+                lines.add('P50 (OMS): ${refKg!.toStringAsFixed(2)} kg');
+              }
+              if (dataKg != null) {
+                lines.add('Pesada: ${dataKg.toStringAsFixed(2)} kg');
+              }
+
+              const tipStyle = TextStyle(
+                color: Color(0xFF1F2937),
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                height: 1.4,
+              );
+              final text = lines.join('\n');
+
+              return touchedSpots.asMap().entries.map((e) {
+                if (e.key == 0) {
+                  return LineTooltipItem(
+                    text,
+                    tipStyle,
+                    textAlign: TextAlign.left,
+                  );
+                }
+                return null;
+              }).toList();
+            },
+          ),
+        ),
       ),
       duration: const Duration(milliseconds: 250),
     );

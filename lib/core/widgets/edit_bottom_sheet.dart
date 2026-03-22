@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../theme/edit_dialog_theme.dart';
 
+double _editSheetBottomPadding(BuildContext context) {
+  final vi = MediaQuery.viewInsetsOf(context).bottom;
+  final pb = MediaQuery.paddingOf(context).bottom;
+  return vi + (vi > 0 ? 0 : pb) + AppTheme.extraBottomSpacing;
+}
+
 /// Bottom sheet reutilizable para formularios de edición.
 class EditBottomSheet extends StatelessWidget {
   final String title;
@@ -29,7 +35,7 @@ class EditBottomSheet extends StatelessWidget {
         bottom: false,
         child: Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: _editSheetBottomPadding(context),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
