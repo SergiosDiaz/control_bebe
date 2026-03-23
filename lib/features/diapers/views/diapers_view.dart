@@ -75,9 +75,9 @@ class _DiapersViewState extends ConsumerState<DiapersView> {
       }
       grouped.putIfAbsent(key, () => []).add(r);
     }
-    final titleStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-        );
+    final titleStyle = Theme.of(
+      context,
+    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold);
     if (sorted.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,9 +87,9 @@ class _DiapersViewState extends ConsumerState<DiapersView> {
           Text(
             'Todavía no hay registros. Usa «Registrar cambio de pañal» arriba para añadir el primero.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textLight,
-                  height: 1.4,
-                ),
+              color: AppTheme.textLight,
+              height: 1.4,
+            ),
           ),
         ],
       );
@@ -97,10 +97,7 @@ class _DiapersViewState extends ConsumerState<DiapersView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Historial',
-          style: titleStyle,
-        ),
+        Text('Historial', style: titleStyle),
         const SizedBox(height: 16),
         ...grouped.entries.expand(
           (e) => [
@@ -256,9 +253,8 @@ class _DiapersViewState extends ConsumerState<DiapersView> {
                           error: (e, _) => StreamRecordLoadError(
                             message:
                                 'No se pudieron cargar los pañales. Reintenta o comprueba la conexión.',
-                            onRetry: () => ref.invalidate(
-                              diaperRecordsStreamProvider,
-                            ),
+                            onRetry: () =>
+                                ref.invalidate(diaperRecordsStreamProvider),
                           ),
                         ),
                       ],
@@ -489,47 +485,72 @@ class _DiaperRecordTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(width: 4, color: accentColor),
-              Expanded(
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  leading: CircleAvatar(
-                    backgroundColor: accentColor.withValues(alpha: 0.18),
+              Container(
+                width: AppTheme.historyRecordStripeWidth,
+                color: accentColor,
+              ),
+              Padding(
+                padding: AppTheme.historyRecordLeadingPadding,
+                child: Center(
+                  child: CircleAvatar(
+                    radius: AppTheme.historyRecordAvatarRadius,
+                    backgroundColor: accentColor.withValues(
+                      alpha: AppTheme.historyRecordAvatarAccentOpacity,
+                    ),
                     child: isFa
                         ? FaIcon(icon, color: accentColor, size: 20)
                         : Icon(icon, color: accentColor, size: 22),
                   ),
-                  title: Text(
-                    label,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: accentColor.withValues(alpha: 0.92),
-                    ),
-                  ),
-                  subtitle: Text(
-                    DateFormat('d MMM, HH:mm').format(record.dateTime),
-                  ),
-                  trailing: Row(
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: AppTheme.historyRecordContentPadding,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: () =>
-                            _showEditDialog(context, record, onDelete),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete,
-                          color: Colors.red,
-                          size: 20,
+                      Text(
+                        label,
+                        style: AppTheme.historyRecordTypeTitleStyle(
+                          accentColor,
                         ),
-                        onPressed: onDelete,
+                      ),
+                      SizedBox(height: AppTheme.historyRecordAfterTitleGap),
+                      Text(
+                        DateFormat('d MMM, HH:mm').format(record.dateTime),
+                        style: AppTheme.historyRecordDateTimeStyle(context),
                       ),
                     ],
                   ),
+                ),
+              ),
+              Padding(
+                padding: AppTheme.historyRecordTrailingOuterPadding,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 20),
+                          onPressed: () =>
+                              _showEditDialog(context, record, onDelete),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          onPressed: onDelete,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],

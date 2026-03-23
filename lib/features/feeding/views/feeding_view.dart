@@ -70,6 +70,7 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
 
   Future<void> _startBreast(LactationSide side) async {
     await IsarService.startLactationTimer(side);
+    await NextFeedingNotificationService.cancelScheduled();
     if (mounted) {
       setState(() {
         _activeTimer = LactationTimer(side: side, startedAt: DateTime.now());
@@ -103,7 +104,10 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
     );
   }
 
-  Widget _feedingHistoryColumn(BuildContext context, List<FeedingRecord> records) {
+  Widget _feedingHistoryColumn(
+    BuildContext context,
+    List<FeedingRecord> records,
+  ) {
     final sorted = List<FeedingRecord>.from(records)
       ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
     final grouped = <String, List<FeedingRecord>>{};
@@ -123,9 +127,9 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
       }
       grouped.putIfAbsent(key, () => []).add(r);
     }
-    final titleStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-        );
+    final titleStyle = Theme.of(
+      context,
+    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold);
     if (sorted.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,9 +139,9 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
           Text(
             'Todavía no hay registros. Inicia una toma (pecho) o pulsa «Biberón» arriba para añadir la primera.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textLight,
-                  height: 1.4,
-                ),
+              color: AppTheme.textLight,
+              height: 1.4,
+            ),
           ),
         ],
       );
@@ -145,10 +149,7 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Historial',
-          style: titleStyle,
-        ),
+        Text('Historial', style: titleStyle),
         const SizedBox(height: 16),
         ...grouped.entries.expand(
           (e) => [
@@ -158,15 +159,15 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
                 Text(
                   e.key,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textLight,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textLight,
+                  ),
                 ),
                 Text(
                   '${e.value.length} toma${e.value.length != 1 ? 's' : ''}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textLight,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppTheme.textLight),
                 ),
               ],
             ),
@@ -313,15 +314,13 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
                           skipLoadingOnReload: true,
                           data: (records) =>
                               _feedingHistoryColumn(context, records),
-                          loading: () => const Center(
-                            child: CircularProgressIndicator(),
-                          ),
+                          loading: () =>
+                              const Center(child: CircularProgressIndicator()),
                           error: (e, _) => StreamRecordLoadError(
                             message:
                                 'No se pudieron cargar las tomas. Reintenta o comprueba la conexión.',
-                            onRetry: () => ref.invalidate(
-                              feedingRecordsStreamProvider,
-                            ),
+                            onRetry: () =>
+                                ref.invalidate(feedingRecordsStreamProvider),
                           ),
                         ),
                       ],
@@ -504,15 +503,18 @@ class _FeedingRecordTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(width: 4, color: accentColor),
-              Expanded(
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  leading: CircleAvatar(
-                    backgroundColor: accentColor.withValues(alpha: 0.18),
+              Container(
+                width: AppTheme.historyRecordStripeWidth,
+                color: accentColor,
+              ),
+              Padding(
+                padding: AppTheme.historyRecordLeadingPadding,
+                child: Center(
+                  child: CircleAvatar(
+                    radius: AppTheme.historyRecordAvatarRadius,
+                    backgroundColor: accentColor.withValues(
+                      alpha: AppTheme.historyRecordAvatarAccentOpacity,
+                    ),
                     child: record.type == FeedingType.bottle
                         ? Icon(icon, color: accentColor, size: 22)
                         : (mirrored
@@ -527,39 +529,71 @@ class _FeedingRecordTile extends StatelessWidget {
                                 )
                               : FaIcon(icon, color: accentColor, size: 20)),
                   ),
-                  title: Text(
-                    label,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: accentColor.withValues(alpha: 0.92),
-                    ),
-                  ),
-                  subtitle: Text(
-                    [
-                      DateFormat('d MMM, HH:mm').format(record.dateTime),
-                      duration,
-                      amount,
-                    ].whereType<String>().join(' • '),
-                  ),
-                  trailing: Row(
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: AppTheme.historyRecordContentPadding,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: () => _showEditDialog(context, record),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete,
-                          color: Colors.red,
-                          size: 20,
+                      Text(
+                        label,
+                        style: AppTheme.historyRecordTypeTitleStyle(
+                          accentColor,
                         ),
-                        onPressed: record.id != null
-                            ? () => IsarService.deleteFeedingRecord(record.id!)
-                            : () {},
+                      ),
+                      if (duration != null || amount != null) ...[
+                        SizedBox(height: AppTheme.historyRecordAfterTitleGap),
+                        Text(
+                          [?duration, ?amount].nonNulls.join(' '),
+                          style: AppTheme.historyRecordPrimaryValueStyle(
+                            accentColor,
+                          ),
+                        ),
+                      ],
+                      SizedBox(
+                        height: (duration != null || amount != null)
+                            ? AppTheme.historyRecordDetailToDateGap
+                            : AppTheme.historyRecordAfterTitleGap,
+                      ),
+                      Text(
+                        DateFormat('d MMM, HH:mm').format(record.dateTime),
+                        style: AppTheme.historyRecordDateTimeStyle(context),
                       ),
                     ],
                   ),
+                ),
+              ),
+              Padding(
+                padding: AppTheme.historyRecordTrailingOuterPadding,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 20),
+                          onPressed: () => _showEditDialog(context, record),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          onPressed: record.id != null
+                              ? () =>
+                                    IsarService.deleteFeedingRecord(record.id!)
+                              : () {},
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],

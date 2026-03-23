@@ -1,3 +1,5 @@
+import '../utils/baby_age_calendar.dart';
+
 /// Modelo de datos puro - sin dependencias de Isar
 class BabyProfile {
   final int? id;
@@ -54,10 +56,7 @@ class BabyProfile {
         notifyNextFeeding: notifyNextFeeding ?? this.notifyNextFeeding,
       );
 
-  /// Edad en meses decimales desde el nacimiento
-  double get ageInMonths {
-    final now = DateTime.now();
-    final diff = now.difference(birthDate);
-    return diff.inDays / 30.44;
-  }
+  /// Edad en meses decimales (calendario) desde el nacimiento hasta hoy.
+  double get ageInMonths =>
+      BabyAgeCalendar.fractionalMonthsAt(birthDate, DateTime.now());
 }

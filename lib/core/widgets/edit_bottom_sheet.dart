@@ -5,8 +5,7 @@ import '../theme/edit_dialog_theme.dart';
 
 double _editSheetBottomPadding(BuildContext context) {
   final vi = MediaQuery.viewInsetsOf(context).bottom;
-  final pb = MediaQuery.paddingOf(context).bottom;
-  return vi + (vi > 0 ? 0 : pb) + AppTheme.extraBottomSpacing;
+  return vi + AppTheme.extraBottomSpacing;
 }
 
 /// Bottom sheet reutilizable para formularios de edición.

@@ -18,7 +18,9 @@ import '../../../core/models/feeding_record.dart';
 import '../../../core/models/weight_record.dart';
 import '../../settings/views/settings_page.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/utils/baby_age_calendar.dart';
 import '../../../core/utils/weight_daily_trend.dart';
+import '../../../core/services/monthiversary_confetti_service.dart';
 import '../../../core/services/sabias_que_service.dart';
 import '../../../core/providers/record_stream_providers.dart';
 import '../../../core/services/next_feeding_notification_service.dart';
@@ -53,6 +55,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
   void initState() {
     super.initState();
     _homeDataFuture = _loadHomeData();
+    unawaited(_scheduleAutoMilestoneConfetti(_homeDataFuture));
   }
 
   @override
@@ -62,7 +65,20 @@ class _HomeViewState extends ConsumerState<HomeView> {
       setState(() {
         _homeDataFuture = _loadHomeData();
       });
+      unawaited(_scheduleAutoMilestoneConfetti(_homeDataFuture));
     }
+  }
+
+  Future<void> _scheduleAutoMilestoneConfetti(
+    Future<Map<String, dynamic>> future,
+  ) async {
+    final data = await future;
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final baby = data['baby'] as BabyProfile?;
+      MonthiversaryConfettiService.tryPlayAutomatic(context, baby?.birthDate);
+    });
   }
 
   Future<void> _handlePhotoTap(BabyProfile? baby) async {
@@ -300,13 +316,9 @@ class _HomeViewState extends ConsumerState<HomeView> {
     final sabiasQue = results[4] as String?;
 
     final lastWeight = weightRecords.isNotEmpty ? weightRecords.first : null;
-    final prevWeight = weightRecords.length > 1 ? weightRecords[1] : null;
 
-    double? dailyTrendGPerDay;
-    if (lastWeight != null && prevWeight != null) {
-      dailyTrendGPerDay =
-          dailyWeightTrendGramsPerDay(lastWeight, prevWeight);
-    }
+    final dailyTrendGPerDay =
+        dailyWeightTrendLinearRegressionGramsPerDay(weightRecords);
 
     String? lastFeedingDetail;
     DateTime? lastFeedingAt;
@@ -376,6 +388,78 @@ class _HomeViewState extends ConsumerState<HomeView> {
 }
 
 // --- Tarjeta perfil central ---
+
+class _MonthiversaryBanner extends StatelessWidget {
+  final int months;
+
+  const _MonthiversaryBanner({required this.months});
+
+  @override
+  Widget build(BuildContext context) {
+    final msg = months == 1
+        ? '¡Hoy cumple 1 mes!'
+        : '¡Hoy cumple $months meses!';
+    return Semantics(
+      button: true,
+      label: msg,
+      hint: 'Pulsa para confeti; hasta dos veces hasta que termine',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => unawaited(
+                MonthiversaryConfettiService.playManual(context),
+              ),
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Color.lerp(AppTheme.paletteTertiary, Colors.white, 0.72)!,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: Color.lerp(
+                  AppTheme.paletteTertiary,
+                  AppTheme.paletteSecondary,
+                  0.5,
+                )!,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.paletteTertiary.withValues(alpha: 0.35),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.celebration_rounded,
+                  size: 20,
+                  color: AppTheme.palettePrimary,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    msg,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: AppTheme.textHeading,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                          height: 1.2,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Avatar con anillo degradado (azul o rosa según sexo), halo blanco y sombra.
 class _ProfileGradientAvatarRing extends StatelessWidget {
@@ -556,20 +640,21 @@ class _ProfileSummaryCard extends StatelessWidget {
     required this.onPhotoTap,
   });
 
-  String _formatAgeCaps(DateTime birthDate) {
-    final totalDays = DateTime.now().difference(birthDate).inDays;
-    final months = totalDays ~/ 30;
-    final days = totalDays % 30;
-    final mesWord = months == 1 ? 'MES' : 'MESES';
-    final diaWord = days == 1 ? 'DÍA' : 'DÍAS';
-    return '$months $mesWord, $days $diaWord';
+  static String _formatAgeLine(({int months, int days}) age) {
+    final mesWord = age.months == 1 ? 'MES' : 'MESES';
+    final diaWord = age.days == 1 ? 'DÍA' : 'DÍAS';
+    return '${age.months} $mesWord, ${age.days} $diaWord';
   }
 
   @override
   Widget build(BuildContext context) {
     final isMale = baby?.isMale ?? true;
     final name = baby?.name ?? 'Bebé';
-    final ageLine = baby != null ? _formatAgeCaps(baby!.birthDate) : null;
+    final now = DateTime.now();
+    final ({int months, int days})? age = baby != null
+        ? BabyAgeCalendar.monthsAndDaysAt(baby!.birthDate, now)
+        : null;
+    final monthiversary = age != null && age.months >= 1 && age.days == 0;
 
     return Material(
       color: AppTheme.cardBackground,
@@ -620,16 +705,19 @@ class _ProfileSummaryCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (ageLine != null) ...[
+            if (age != null) ...[
               const SizedBox(height: 4),
-              Text(
-                ageLine,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppTheme.textLight,
-                  letterSpacing: 1.1,
-                  fontWeight: FontWeight.w600,
+              if (monthiversary)
+                Center(child: _MonthiversaryBanner(months: age.months))
+              else
+                Text(
+                  _formatAgeLine(age),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppTheme.textLight,
+                        letterSpacing: 1.1,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
-              ),
             ],
             const SizedBox(height: 12),
             Center(
@@ -1074,27 +1162,33 @@ class _PesoResumenCard extends StatelessWidget {
                     ],
                     if (trend != null) ...[
                       const SizedBox(height: 6),
-                      Text.rich(
-                        TextSpan(
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppTheme.textLight,
-                            fontWeight: FontWeight.w600,
-                            height: 1.3,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            trend >= 0
+                                ? Icons.trending_up_rounded
+                                : Icons.trending_down_rounded,
+                            size: 18,
+                            color: trend >= 0
+                                ? AppTheme.trendPositiveGreen
+                                : AppTheme.trendNegativeRed,
                           ),
-                          children: [
-                            const TextSpan(text: 'Tendencia: '),
-                            TextSpan(
-                              text:
-                                  '${trend >= 0 ? '+' : ''}${trend.toStringAsFixed(1)} g/día',
-                              style: TextStyle(
-                                color: trend >= 0
-                                    ? AppTheme.trendPositiveGreen
-                                    : AppTheme.trendNegativeRed,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${trend >= 0 ? '+' : ''}${trend.toStringAsFixed(1)} g/día',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  color: trend >= 0
+                                      ? AppTheme.trendPositiveGreen
+                                      : AppTheme.trendNegativeRed,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.3,
+                                ),
+                          ),
+                        ],
                       ),
                     ],
                     if (lastLabel != null) ...[
@@ -1629,7 +1723,7 @@ class _HomeCardsSkeletonState extends State<_HomeCardsSkeleton>
 
 class _WeightData {
   final double? currentKg;
-  /// Ritmo entre las dos últimas pesadas (g/día).
+  /// Pendiente de regresión lineal (g/día) con pesadas de los últimos 7 días.
   final double? dailyTrendGramsPerDay;
   final DateTime? lastRecordedAt;
 

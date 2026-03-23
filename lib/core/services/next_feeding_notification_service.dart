@@ -84,6 +84,9 @@ class NextFeedingNotificationService {
     final last = await IsarService.getLastFeedingRecord();
     if (baby == null || last == null || !baby.notifyNextFeeding) return;
 
+    // No avisar de "próxima toma" mientras el cronómetro de pecho está en marcha.
+    if (await IsarService.getActiveLactationTimer() != null) return;
+
     final interval = baby.expectedFeedingIntervalMinutes.clamp(30, 720);
     final next = last.dateTime.add(Duration(minutes: interval));
     if (!next.isAfter(DateTime.now())) return;

@@ -19,10 +19,13 @@ class AppTheme {
 
   /// Navegación inferior: fondo de la píldora al seleccionar (tonalidades de la paleta).
   static const Color navHomeSelectedFill = softPrimaryFill;
+
   /// Crema [#FBF8CC] y familia (antes el menta iba a peso).
   static const Color navDiapersSelectedFill = Color(0xFFFBF8CC);
+
   /// Familia del melocotón [#FFD1BA] / [paletteTertiary].
   static const Color navFeedingSelectedFill = Color(0xFFFFE8D9);
+
   /// Familia del menta claro (mismos tonos que tenía pañales).
   static const Color navWeightSelectedFill = Color(0xFFD4F5E6);
 
@@ -59,6 +62,7 @@ class AppTheme {
 
   /// Icono de sexo masculino (azul bebé suave).
   static const Color genderMaleBabyBlue = Color(0xFF7DBEE8);
+
   /// Anillo de perfil / icono hembra (rosa).
   static const Color genderFemalePink = Color(0xFFE85C8A);
 
@@ -66,39 +70,93 @@ class AppTheme {
   static const Color primaryBlue = palettePrimary;
   static const Color primaryPink = palettePrimary;
   static const Color primaryGreen = Color(0xFF2D6A4F);
+
   /// Verde más vivo para deltas positivos (peso, tendencias en Home).
   static const Color trendPositiveGreen = Color(0xFF16A34A);
   static const Color trendNegativeRed = Color(0xFFC62828);
   static const Color primaryOrange = Color(0xFFD4A088);
+
   /// Pecho izquierdo / derecho en historial de lactancia.
   static const Color breastLeft = palettePrimary;
   static const Color breastRight = Color(0xFFA8E6CF);
 
-  /// Historial de tomas: variaciones sutiles (misma familia fría → cálido suave).
-  static const Color feedingHistoryLeftAccent = palettePrimary;
-  static const Color feedingHistoryRightAccent = Color(0xFF3A8A7A);
-  static const Color feedingHistoryBottleAccent = Color(0xFF8B725C);
+  /// Historial de tomas: misma fuerza visual que pañales (azul / verde azulado / tierra).
+  static const Color feedingHistoryLeftAccent = Color(0xFF4589B3);
+  static const Color feedingHistoryRightAccent = Color(0xFF2A9485);
+  static const Color feedingHistoryBottleAccent = Color(0xFF8B6A55);
 
   /// Historial de pañales: mojado / sucio / ambos (tonos cercanos, fáciles de distinguir).
   static const Color diaperHistoryWetAccent = Color(0xFF4589B3);
   static const Color diaperHistoryDirtyAccent = Color(0xFF8B6A55);
   static const Color diaperHistoryBothAccent = Color(0xFF667A92);
 
+  /// Acento de la ficha de historial de peso (misma familia que la pestaña Peso).
+  static Color get weightHistoryAccent => navWeightSelectedFg;
+
+  /// Layout compartido: fichas de historial en alimentación, pañales y peso.
+  static const double historyRecordStripeWidth = 4;
+  static const double historyRecordAvatarRadius = 22;
+  static const EdgeInsets historyRecordLeadingPadding = EdgeInsets.symmetric(
+    horizontal: 10,
+    vertical: 12,
+  );
+  static const EdgeInsets historyRecordContentPadding = EdgeInsets.fromLTRB(
+    4,
+    10,
+    8,
+    10,
+  );
+  static const EdgeInsets historyRecordTrailingOuterPadding = EdgeInsets.only(
+    right: 2,
+  );
+
+  /// Tras el título de tipo (Mojado, Izquierdo…).
+  static const double historyRecordAfterTitleGap = 6;
+
+  /// Tras duración / ml / kg hacia la fecha.
+  static const double historyRecordDetailToDateGap = 4;
+
+  /// Fondo del avatar en fichas de historial (acento sobre blanco); más alto = menos “lavado”.
+  static const double historyRecordAvatarAccentOpacity = 0.32;
+
+  static TextStyle historyRecordTypeTitleStyle(Color accent) => TextStyle(
+        fontWeight: FontWeight.w600,
+        color: accent,
+      );
+
+  static TextStyle historyRecordPrimaryValueStyle(Color accent) => TextStyle(
+        fontWeight: FontWeight.w700,
+        fontSize: 15,
+        height: 1.2,
+        color: accent,
+        letterSpacing: 0.15,
+      );
+
+  static TextStyle historyRecordDateTimeStyle(BuildContext context) {
+    final base = Theme.of(context).textTheme.bodySmall;
+    return (base ?? const TextStyle(fontSize: 12)).copyWith(
+      color: textLight,
+      fontWeight: FontWeight.w500,
+      fontStyle: FontStyle.italic,
+      height: 1.2,
+    );
+  }
+
   /// Margen horizontal entre el borde de pantalla y tarjetas / bloques (referencia Home).
   static const double screenEdgePadding = 20;
 
   /// Aire extra bajo el contenido cuando `SafeArea(bottom: false)` (barra de tabs, login, etc.).
-  static const double extraBottomSpacing = 16;
+  static const double extraBottomSpacing = 8;
 
-  /// Inset inferior del dispositivo (p. ej. home indicator) más [extraBottomSpacing].
-  static double safeBottomPadding(BuildContext context) =>
-      MediaQuery.paddingOf(context).bottom + extraBottomSpacing;
+  /// Margen fijo bajo el contenido (sin inset del home indicator de iPhone).
+  static double safeBottomPadding(BuildContext context) => extraBottomSpacing;
 
   /// Espacio bajo [MainAppTitleBar] hasta el primer widget (misma referencia que Home).
   static const double contentPaddingTopAfterTitleBar = 8;
 
   /// Radio de botones, campos y piezas compactas.
   static const double cardRadius = 24;
+
   /// Radio de fichas / [Card] principales (misma curva que Home).
   static const double homeCardRadius = 32;
   static const double cardElevation = 0.5;
@@ -111,12 +169,12 @@ class AppTheme {
   static BorderSide get cardOutlineSide =>
       BorderSide(color: cardOutline, width: 1);
 
-  static RoundedRectangleBorder cardShapeRounded(
-          [double radius = homeCardRadius]) =>
-      RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(radius),
-        side: cardOutlineSide,
-      );
+  static RoundedRectangleBorder cardShapeRounded([
+    double radius = homeCardRadius,
+  ]) => RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(radius),
+    side: cardOutlineSide,
+  );
 
   static RoundedRectangleBorder get homeCardShapeRounded =>
       cardShapeRounded(homeCardRadius);
@@ -128,13 +186,13 @@ class AppTheme {
   /// Hora, batería y notificaciones legibles sobre fondo claro (iOS + Android).
   static const SystemUiOverlayStyle systemUiForLightBackground =
       SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarBrightness: Brightness.light,
-    statusBarIconBrightness: Brightness.dark,
-    systemNavigationBarColor: background,
-    systemNavigationBarIconBrightness: Brightness.dark,
-    systemNavigationBarDividerColor: Colors.transparent,
-  );
+        statusBarColor: Colors.transparent,
+        statusBarBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: background,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+      );
 
   static ThemeData get lightTheme {
     final colorScheme = ColorScheme.fromSeed(
@@ -148,10 +206,9 @@ class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
     );
-    final inter = GoogleFonts.interTextTheme(base.textTheme).apply(
-      bodyColor: textDark,
-      displayColor: textHeading,
-    );
+    final inter = GoogleFonts.interTextTheme(
+      base.textTheme,
+    ).apply(bodyColor: textDark, displayColor: textHeading);
     return base.copyWith(
       textTheme: inter.copyWith(
         headlineLarge: inter.headlineLarge?.copyWith(
@@ -210,7 +267,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(cardRadius),
           borderSide: const BorderSide(color: palettePrimary, width: 1),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

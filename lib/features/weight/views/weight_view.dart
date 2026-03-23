@@ -15,6 +15,7 @@ import '../../../core/widgets/stream_record_load_error.dart';
 import '../../../core/widgets/edit_bottom_sheet.dart';
 import '../../../core/models/baby_profile.dart';
 import '../../../core/models/weight_record.dart';
+import '../../../core/utils/baby_age_calendar.dart';
 import '../../../core/percentiles_data.dart';
 import '../../../core/utils/weight_daily_trend.dart';
 
@@ -379,10 +380,10 @@ class _WeightViewState extends ConsumerState<WeightView> {
                             ),
                             loading: () => const SizedBox.shrink(),
                             error: (e, _) => StreamRecordLoadError(
-                              message: 'No se pudo cargar el historial de peso.',
-                              onRetry: () => ref.invalidate(
-                                weightRecordsStreamProvider,
-                              ),
+                              message:
+                                  'No se pudo cargar el historial de peso.',
+                              onRetry: () =>
+                                  ref.invalidate(weightRecordsStreamProvider),
                             ),
                           ),
                         ],
@@ -400,10 +401,7 @@ class _WeightViewState extends ConsumerState<WeightView> {
 
   Widget _summaryRow(List<WeightRecord> records) {
     final lastWeight = records.isNotEmpty ? records.first : null;
-    final prevWeight = records.length > 1 ? records[1] : null;
-    final dailyGPerDay = lastWeight != null && prevWeight != null
-        ? dailyWeightTrendGramsPerDay(lastWeight, prevWeight)
-        : null;
+    final dailyGPerDay = dailyWeightTrendLinearRegressionGramsPerDay(records);
 
     return Row(
       children: [
@@ -422,7 +420,7 @@ class _WeightViewState extends ConsumerState<WeightView> {
           child: _SummaryCard(
             title: 'Tendencia diaria',
             value: dailyGPerDay != null
-                ? '${dailyGPerDay >= 0 ? '+' : ''}${dailyGPerDay.toStringAsFixed(1)} g/día'
+                ? '${dailyGPerDay >= 0 ? '+' : ''}${dailyGPerDay.toStringAsFixed(1)} g'
                 : '-',
             showTrendIcon: dailyGPerDay != null,
             isPositive: dailyGPerDay != null && dailyGPerDay >= 0,
@@ -521,13 +519,12 @@ class _WeightChart extends StatelessWidget {
   });
 
   double _ageInMonths(DateTime date) {
-    return date.difference(birthDate).inDays / 30.44;
+    return BabyAgeCalendar.fractionalMonthsAt(birthDate, date);
   }
 
   /// Días transcurridos desde [origin] hasta [t] (fracción de día si hay hora).
   static double _daysSince(DateTime origin, DateTime t) {
-    return t.difference(origin).inMilliseconds /
-        Duration.millisecondsPerDay;
+    return t.difference(origin).inMilliseconds / Duration.millisecondsPerDay;
   }
 
   static double _bottomTitleInterval(double maxX) {
@@ -633,8 +630,7 @@ class _WeightChart extends StatelessWidget {
                 }
                 final labelDate = origin.add(
                   Duration(
-                    milliseconds:
-                        (value * Duration.millisecondsPerDay).round(),
+                    milliseconds: (value * Duration.millisecondsPerDay).round(),
                   ),
                 );
                 return Padding(
@@ -706,12 +702,13 @@ class _WeightChart extends StatelessWidget {
               final x = touchedSpots.first.x;
               final touchedDate = origin.add(
                 Duration(
-                  milliseconds:
-                      (x * Duration.millisecondsPerDay).round(),
+                  milliseconds: (x * Duration.millisecondsPerDay).round(),
                 ),
               );
-              final dateStr =
-                  DateFormat('d MMM yyyy, HH:mm', 'es').format(touchedDate);
+              final dateStr = DateFormat(
+                'd MMM yyyy, HH:mm',
+                'es',
+              ).format(touchedDate);
 
               final hasRef = refSpots.length > 1;
               final dataBarIndex = hasRef ? 1 : 0;
@@ -773,28 +770,89 @@ class _WeightRecordTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = AppTheme.weightHistoryAccent;
+    final borderRadius = BorderRadius.circular(AppTheme.homeCardRadius);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        title: Text(
-          '${record.weightKg.toStringAsFixed(2)} kg',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(DateFormat('d MMM yyyy, HH:mm').format(record.dateTime)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit, size: 20),
-              onPressed: () => _showEditDialog(context, record),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-              onPressed: record.id != null
-                  ? () => IsarService.deleteWeightRecord(record.id!)
-                  : () {},
-            ),
-          ],
+      clipBehavior: Clip.antiAlias,
+      elevation: 0,
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: AppTheme.historyRecordStripeWidth,
+                color: accent,
+              ),
+              Padding(
+                padding: AppTheme.historyRecordLeadingPadding,
+                child: Center(
+                  child: CircleAvatar(
+                    radius: AppTheme.historyRecordAvatarRadius,
+                    backgroundColor: accent.withValues(
+                      alpha: AppTheme.historyRecordAvatarAccentOpacity,
+                    ),
+                    child: Icon(
+                      Icons.monitor_weight_outlined,
+                      color: accent,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: AppTheme.historyRecordContentPadding,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${record.weightKg.toStringAsFixed(2)} kg',
+                        style: AppTheme.historyRecordPrimaryValueStyle(accent),
+                      ),
+                      SizedBox(height: AppTheme.historyRecordDetailToDateGap),
+                      Text(
+                        DateFormat('d MMM, HH:mm').format(record.dateTime),
+                        style: AppTheme.historyRecordDateTimeStyle(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: AppTheme.historyRecordTrailingOuterPadding,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 20),
+                          onPressed: () => _showEditDialog(context, record),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          onPressed: record.id != null
+                              ? () => IsarService.deleteWeightRecord(record.id!)
+                              : () {},
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
