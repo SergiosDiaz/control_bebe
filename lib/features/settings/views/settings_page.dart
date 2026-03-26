@@ -22,6 +22,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   BabyProfile? _baby;
+  bool _deletingAccount = false;
 
   @override
   void initState() {
@@ -302,10 +303,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
     if (confirm != true || !mounted) return;
 
+    setState(() => _deletingAccount = true);
     try {
       await AuthService.deleteAccount();
     } on Exception catch (e) {
       if (mounted) {
+        setState(() => _deletingAccount = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al eliminar la cuenta: $e')),
         );
@@ -600,9 +603,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: _deleteAccount,
-                          icon: const Icon(Icons.delete_forever, size: 18),
-                          label: const Text('Eliminar mi cuenta'),
+                          onPressed: _deletingAccount ? null : _deleteAccount,
+                          icon: _deletingAccount
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.delete_forever, size: 18),
+                          label: Text(_deletingAccount ? 'Eliminando...' : 'Eliminar mi cuenta'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Theme.of(context).colorScheme.error,
                             side: BorderSide(
