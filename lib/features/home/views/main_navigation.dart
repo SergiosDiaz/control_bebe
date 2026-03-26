@@ -20,7 +20,8 @@ class MainNavigation extends ConsumerStatefulWidget {
   ConsumerState<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends ConsumerState<MainNavigation> {
+class _MainNavigationState extends ConsumerState<MainNavigation>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _homeScrollController = ScrollController();
   final _diapersScrollController = ScrollController();
@@ -31,12 +32,28 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
   static const _scrollTopCurve = Curves.easeOut;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _homeScrollController.dispose();
     _diapersScrollController.dispose();
     _feedingScrollController.dispose();
     _weightScrollController.dispose();
     super.dispose();
+  }
+
+  /// Reprograma la notificación al volver al primer plano, por si otra persona
+  /// de la familia registró una toma mientras la app estaba en segundo plano.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      NextFeedingNotificationService.syncFromStorage();
+    }
   }
 
   void _scrollHomeToTop({required bool animated}) {
@@ -119,6 +136,14 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    // Reprogramar notificación cada vez que cambia el historial de tomas en Firestore,
+    // incluso si fue otra persona de la familia quien registró la toma.
+    ref.listen<AsyncValue<List>>(feedingRecordsStreamProvider, (_, next) {
+      if (next is AsyncData) {
+        NextFeedingNotificationService.syncFromStorage();
+      }
+    });
+
     final screens = [
       HomeView(
         scrollController: _homeScrollController,

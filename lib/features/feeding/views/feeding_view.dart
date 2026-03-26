@@ -40,6 +40,7 @@ class FeedingView extends ConsumerStatefulWidget {
 class _FeedingViewState extends ConsumerState<FeedingView> {
   Timer? _timer;
   LactationTimer? _activeTimer;
+  final Set<int> _deletedFeedingIds = {};
 
   @override
   void initState() {
@@ -69,32 +70,39 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
   }
 
   Future<void> _startBreast(LactationSide side) async {
-    await IsarService.startLactationTimer(side);
-    await NextFeedingNotificationService.cancelScheduled();
+    final now = DateTime.now();
+    // Actualizar UI inmediatamente sin esperar confirmación de red
     if (mounted) {
       setState(() {
-        _activeTimer = LactationTimer(side: side, startedAt: DateTime.now());
-        _startTick();
+        _activeTimer = LactationTimer(side: side, startedAt: now);
       });
+      _startTick();
     }
+    unawaited(IsarService.startLactationTimer(side));
+    unawaited(NextFeedingNotificationService.cancelScheduled());
   }
 
   Future<void> _stopBreast() async {
-    final timer = await IsarService.stopLactationTimer();
+    final timer = _activeTimer;
+    if (timer == null) return;
+    // Actualizar UI inmediatamente con los datos locales del timer
     _timer?.cancel();
-    if (mounted && timer != null) {
-      setState(() => _activeTimer = null);
-      await IsarService.addFeedingRecord(
-        FeedingRecord(
-          type: timer.side == LactationSide.left
-              ? FeedingType.leftBreast
-              : FeedingType.rightBreast,
-          dateTime: timer.startedAt,
-          durationSeconds: timer.elapsed.inSeconds,
-        ),
-      );
-      await NextFeedingNotificationService.syncFromStorage();
-    }
+    if (mounted) setState(() => _activeTimer = null);
+    // Guardar en Firestore sin bloquear la UI
+    unawaited(
+      IsarService.stopLactationTimer().then((_) async {
+        await IsarService.addFeedingRecord(
+          FeedingRecord(
+            type: timer.side == LactationSide.left
+                ? FeedingType.leftBreast
+                : FeedingType.rightBreast,
+            dateTime: timer.startedAt,
+            durationSeconds: timer.elapsed.inSeconds,
+          ),
+        );
+        await NextFeedingNotificationService.syncFromStorage();
+      }),
+    );
   }
 
   Future<void> _openBottle() async {
@@ -104,12 +112,21 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
     );
   }
 
+  void _deleteFeedingRecord(int id) {
+    setState(() => _deletedFeedingIds.add(id));
+    unawaited(IsarService.deleteFeedingRecord(id).then((_) {
+      if (mounted) setState(() => _deletedFeedingIds.remove(id));
+    }));
+  }
+
   Widget _feedingHistoryColumn(
     BuildContext context,
     List<FeedingRecord> records,
   ) {
     final sorted = List<FeedingRecord>.from(records)
       ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    // Ocultar registros borrados optimistamente
+    sorted.removeWhere((r) => r.id != null && _deletedFeedingIds.contains(r.id));
     final grouped = <String, List<FeedingRecord>>{};
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -172,7 +189,10 @@ class _FeedingViewState extends ConsumerState<FeedingView> {
               ],
             ),
             const SizedBox(height: 8),
-            ...e.value.map((r) => _FeedingRecordTile(record: r)),
+            ...e.value.map((r) => _FeedingRecordTile(
+              record: r,
+              onDelete: r.id != null ? () => _deleteFeedingRecord(r.id!) : null,
+            )),
             const SizedBox(height: 16),
           ],
         ),
@@ -463,8 +483,9 @@ class _TomaTypeButton extends StatelessWidget {
 
 class _FeedingRecordTile extends StatelessWidget {
   final FeedingRecord record;
+  final VoidCallback? onDelete;
 
-  const _FeedingRecordTile({required this.record});
+  const _FeedingRecordTile({required this.record, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -586,10 +607,7 @@ class _FeedingRecordTile extends StatelessWidget {
                             color: Colors.red,
                             size: 20,
                           ),
-                          onPressed: record.id != null
-                              ? () =>
-                                    IsarService.deleteFeedingRecord(record.id!)
-                              : () {},
+                          onPressed: onDelete,
                         ),
                       ],
                     ),

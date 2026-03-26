@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../db/isar_service.dart';
 import '../firebase/firebase_service.dart';
+import '../providers/record_stream_providers.dart';
 import '../services/next_feeding_notification_service.dart';
 import '../widgets/splash_screen.dart';
 import 'auth_service.dart';
@@ -120,6 +121,10 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
   Future<void> _checkInitialRoute() async {
     final needsOnboarding = await IsarService.needsOnboarding();
     if (mounted) {
+      // Forzar recarga de todos los streams para que lean con la sesión actual.
+      ref.invalidate(weightRecordsStreamProvider);
+      ref.invalidate(diaperRecordsStreamProvider);
+      ref.invalidate(feedingRecordsStreamProvider);
       setState(() {
         _needsOnboarding = needsOnboarding;
         _isReady = true;

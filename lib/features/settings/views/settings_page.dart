@@ -274,6 +274,49 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     if (result != null && mounted) setState(() => _baby = result);
   }
 
+  Future<void> _deleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.dialogRadius),
+        ),
+        title: const Text('Eliminar cuenta'),
+        content: const Text(
+          'Esta acción eliminará permanentemente tu cuenta y tus datos de acceso. Si eres el único miembro de la familia, también se eliminarán todos los datos del bebé.\n\nEsta operación no se puede deshacer. ¿Estás seguro?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Eliminar cuenta'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    try {
+      await AuthService.deleteAccount();
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar la cuenta: $e')),
+        );
+      }
+      return;
+    }
+    if (mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
   Future<void> _signOut() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -526,6 +569,40 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           onPressed: _signOut,
                           icon: const Icon(Icons.logout, size: 18),
                           label: const Text('Cerrar sesión'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.primaryBlue,
+                            side: const BorderSide(
+                              color: AppTheme.primaryBlue,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _SettingsCard(
+                    title: 'Eliminar cuenta',
+                    leading: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error, size: 24),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'Elimina tu cuenta y tus datos de acceso. Si eres el único miembro de la familia, también se eliminarán todos los datos del bebé.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.textLight,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _deleteAccount,
+                          icon: const Icon(Icons.delete_forever, size: 18),
+                          label: const Text('Eliminar mi cuenta'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Theme.of(context).colorScheme.error,
                             side: BorderSide(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -40,6 +41,7 @@ class _WeightViewState extends ConsumerState<WeightView> {
   final _formKey = GlobalKey<FormState>();
   late final Future<BabyProfile?> _babyProfileFuture =
       IsarService.getBabyProfile();
+  final Set<int> _deletedWeightIds = {};
 
   /// Misma altura visual que [ElevatedButton] de esta fila.
   static const double _weightControlHeight = 56;
@@ -58,10 +60,20 @@ class _WeightViewState extends ConsumerState<WeightView> {
     );
     if (weight == null || weight <= 0) return;
 
-    await IsarService.addWeightRecord(
-      WeightRecord(weightKg: weight, dateTime: DateTime.now()),
-    );
+    // Limpiar el campo inmediatamente sin esperar confirmación de red
     _weightController.clear();
+    unawaited(
+      IsarService.addWeightRecord(
+        WeightRecord(weightKg: weight, dateTime: DateTime.now()),
+      ),
+    );
+  }
+
+  void _deleteWeightRecord(int id) {
+    setState(() => _deletedWeightIds.add(id));
+    unawaited(IsarService.deleteWeightRecord(id).then((_) {
+      if (mounted) setState(() => _deletedWeightIds.remove(id));
+    }));
   }
 
   @override
@@ -310,15 +322,32 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
-                                            child: Text(
-                                              'Línea de referencia: percentil 50 (mediana) de peso por edad según los estándares de crecimiento infantil de la OMS.',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall
-                                                  ?.copyWith(
-                                                    color: AppTheme.textLight,
-                                                    height: 1.35,
-                                                  ),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Línea de referencia: percentil 50 (mediana) de peso por edad según los estándares de crecimiento infantil de la OMS.',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: AppTheme.textLight,
+                                                        height: 1.35,
+                                                      ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Fuente: Organización Mundial de la Salud (OMS) — Child Growth Standards. who.int/tools/child-growth-standards',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: AppTheme.primaryBlue,
+                                                        height: 1.35,
+                                                        fontStyle: FontStyle.italic,
+                                                      ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ],
@@ -352,7 +381,11 @@ class _WeightViewState extends ConsumerState<WeightView> {
                           const SizedBox(height: 24),
                           recordsAsync.when(
                             skipLoadingOnReload: true,
-                            data: (records) => Column(
+                            data: (allRecords) {
+                              final records = allRecords
+                                  .where((r) => r.id == null || !_deletedWeightIds.contains(r.id))
+                                  .toList();
+                              return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
@@ -374,10 +407,13 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                   )
                                 else
                                   ...records.map(
-                                    (r) => _WeightRecordTile(record: r),
+                                    (r) => _WeightRecordTile(
+                                      record: r,
+                                      onDelete: r.id != null ? () => _deleteWeightRecord(r.id!) : null,
+                                    ),
                                   ),
                               ],
-                            ),
+                            );},
                             loading: () => const SizedBox.shrink(),
                             error: (e, _) => StreamRecordLoadError(
                               message:
@@ -765,8 +801,9 @@ class _WeightChart extends StatelessWidget {
 
 class _WeightRecordTile extends StatelessWidget {
   final WeightRecord record;
+  final VoidCallback? onDelete;
 
-  const _WeightRecordTile({required this.record});
+  const _WeightRecordTile({required this.record, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -842,9 +879,7 @@ class _WeightRecordTile extends StatelessWidget {
                             color: Colors.red,
                             size: 20,
                           ),
-                          onPressed: record.id != null
-                              ? () => IsarService.deleteWeightRecord(record.id!)
-                              : () {},
+                          onPressed: onDelete,
                         ),
                       ],
                     ),

@@ -175,8 +175,10 @@ class StorageServiceFirebase implements StorageService {
         }
         rethrow;
       } on StateError {
+        // Usuario no autenticado aún: reintentar en lugar de terminar el stream.
         yield <T>[];
-        return;
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+        continue;
       }
     }
   }
