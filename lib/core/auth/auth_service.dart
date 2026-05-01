@@ -1,9 +1,8 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-import '../config/auth_config.dart';
+import '../db/storage_service.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -13,12 +12,7 @@ class AuthService {
 
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  static GoogleSignIn _createGoogleSignIn() {
-    if (kIsWeb && AuthConfig.googleWebClientId != null) {
-      return GoogleSignIn(clientId: AuthConfig.googleWebClientId);
-    }
-    return GoogleSignIn();
-  }
+  static GoogleSignIn _createGoogleSignIn() => GoogleSignIn();
 
   /// Login con email y contraseña
   static Future<UserCredential?> signInWithEmail(String email, String password) async {
@@ -63,6 +57,9 @@ class AuthService {
   /// Cerrar sesión
   static Future<void> signOut() async {
     try {
+      await storage.resetLocalSyncState();
+    } catch (_) {}
+    try {
       await _createGoogleSignIn().signOut();
     } catch (_) {
       // En web sin clientId configurado, GoogleSignIn puede fallar. Ignorar.
@@ -75,6 +72,10 @@ class AuthService {
   static Future<void> deleteAccount() async {
     final user = _auth.currentUser;
     if (user == null) return;
+
+    try {
+      await storage.resetLocalSyncState();
+    } catch (_) {}
 
     final uid = user.uid;
     final userDoc = _firestore.collection('users').doc(uid);

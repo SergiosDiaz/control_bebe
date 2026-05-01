@@ -1,4 +1,4 @@
-# MiBebé Diario
+# Mibebé
 
 App Flutter para el seguimiento del bebé: peso, alimentación (pecho/biberón) y pañales.
 

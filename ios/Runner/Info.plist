@@ -5,9 +5,14 @@
 		<key>CADisableMinimumFrameDurationOnPhone</key>
 		<true/>
 		<key>CFBundleDevelopmentRegion</key>
-		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<string>es</string>
+		<key>CFBundleLocalizations</key>
+		<array>
+			<string>es</string>
+			<string>en</string>
+		</array>
 		<key>CFBundleDisplayName</key>
-		<string>MiBebé Diario</string>
+		<string>Mibebé</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -66,7 +71,19 @@
 					<string>com.googleusercontent.apps.933035228249-qukbu1rdjqpankt4r3ecvf17lsrcmqbh</string>
 				</array>
 			</dict>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>com.controlbebe.controlBebe.liveactivity</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>mibebe</string>
+				</array>
+			</dict>
 		</array>
+		<key>NSSupportsLiveActivities</key>
+		<true/>
 		<key>UILaunchStoryboardName</key>
 		<string>LaunchScreen</string>
 		<key>UIMainStoryboardFile</key>

@@ -1,3 +1,4 @@
+import 'package:control_bebe/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -25,6 +26,7 @@ class EditBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -72,7 +74,7 @@ class EditBottomSheet extends StatelessWidget {
                     Expanded(
                       child: TextButton(
                         onPressed: onCancel,
-                        child: const Text('Cancelar'),
+                        child: Text(l10n.commonCancel),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -80,7 +82,7 @@ class EditBottomSheet extends StatelessWidget {
                       child: FilledButton(
                         style: EditDialogTheme.saveButtonStyle,
                         onPressed: onSave,
-                        child: const Text('Guardar'),
+                        child: Text(l10n.commonSave),
                       ),
                     ),
                   ],

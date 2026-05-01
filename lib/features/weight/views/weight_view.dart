@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:control_bebe/l10n/app_date_locale.dart';
+import 'package:control_bebe/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -14,22 +16,42 @@ import '../../../core/providers/record_stream_providers.dart';
 import '../../../core/widgets/edit_dialog_fields.dart';
 import '../../../core/widgets/stream_record_load_error.dart';
 import '../../../core/widgets/edit_bottom_sheet.dart';
-import '../../../core/models/baby_profile.dart';
+import '../../../core/widgets/confirm_delete_record_dialog.dart';
 import '../../../core/models/weight_record.dart';
 import '../../../core/utils/baby_age_calendar.dart';
 import '../../../core/percentiles_data.dart';
 import '../../../core/utils/weight_daily_trend.dart';
+import '../../../core/models/measurement_units.dart';
+import '../../../core/providers/measurement_prefs_provider.dart';
+import '../../../core/providers/baby_profile_provider.dart';
+import '../../../core/providers/weight_chart_prefs_provider.dart';
+import '../../../core/utils/measurement_display.dart';
+import '../../../core/utils/history_calendar_window.dart';
+import '../models/weight_chart_prefs.dart';
+
+List<WeightRecord> _weightRecordsInChartRange(
+  List<WeightRecord> records,
+  WeightChartTimeRange range,
+) {
+  final days = range.trailingDays;
+  if (days == null) return records;
+  final cutoff = DateTime.now().subtract(Duration(days: days));
+  return records.where((r) => !r.dateTime.isBefore(cutoff)).toList();
+}
 
 class WeightView extends ConsumerStatefulWidget {
   final VoidCallback? onTitleTap;
   final VoidCallback onSettingsTap;
   final ScrollController? scrollController;
+  /// Si es false, no se suscribe a Firestore hasta que la pestaña sea visible.
+  final bool isActiveTab;
 
   const WeightView({
     super.key,
     this.onTitleTap,
     required this.onSettingsTap,
     this.scrollController,
+    this.isActiveTab = true,
   });
 
   @override
@@ -39,9 +61,8 @@ class WeightView extends ConsumerStatefulWidget {
 class _WeightViewState extends ConsumerState<WeightView> {
   final _weightController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  late final Future<BabyProfile?> _babyProfileFuture =
-      IsarService.getBabyProfile();
   final Set<int> _deletedWeightIds = {};
+  DateTime _lastHistoryScrollExpand = DateTime.fromMillisecondsSinceEpoch(0);
 
   /// Misma altura visual que [ElevatedButton] de esta fila.
   static const double _weightControlHeight = 56;
@@ -55,56 +76,111 @@ class _WeightViewState extends ConsumerState<WeightView> {
   Future<void> _registerWeight() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final weight = double.tryParse(
-      _weightController.text.trim().replaceAll(',', '.'),
-    );
-    if (weight == null || weight <= 0) return;
+    final prefs = ref.read(measurementPrefsProvider).valueOrNull ??
+        MeasurementPrefs.defaultsForDispatcher();
+    final weightKg = parseWeightInputToKg(_weightController.text, prefs);
+    if (weightKg == null || weightKg <= 0) return;
 
     // Limpiar el campo inmediatamente sin esperar confirmación de red
     _weightController.clear();
     unawaited(
       IsarService.addWeightRecord(
-        WeightRecord(weightKg: weight, dateTime: DateTime.now()),
+        WeightRecord(weightKg: weightKg, dateTime: DateTime.now()),
       ),
     );
   }
 
   void _deleteWeightRecord(int id) {
     setState(() => _deletedWeightIds.add(id));
-    unawaited(IsarService.deleteWeightRecord(id).then((_) {
-      if (mounted) setState(() => _deletedWeightIds.remove(id));
-    }));
+    unawaited(
+      IsarService.deleteWeightRecord(id).then((_) {
+        if (mounted) setState(() => _deletedWeightIds.remove(id));
+      }),
+    );
+  }
+
+  bool _onWeightHistoryScrollNotification(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    if (n is! ScrollUpdateNotification &&
+        n is! ScrollEndNotification &&
+        n is! OverscrollNotification) {
+      return false;
+    }
+    final m = n.metrics;
+    if (!m.hasPixels) return false;
+    final nearEnd =
+        m.maxScrollExtent <= 0 || m.pixels >= m.maxScrollExtent - 100;
+    if (!nearEnd) return false;
+    final now = DateTime.now();
+    if (now.difference(_lastHistoryScrollExpand) <
+        const Duration(milliseconds: 500)) {
+      return false;
+    }
+    final days = ref.read(weightHistoryFirestoreDaysProvider);
+    if (days >= kHistoryPaginationMaxDays) {
+      return false;
+    }
+    _lastHistoryScrollExpand = now;
+    unawaited(_maybeExpandWeightHistoryWindow());
+    return false;
+  }
+
+  Future<void> _maybeExpandWeightHistoryWindow() async {
+    final hasOlder = await ref.read(hasOlderWeightRecordsProvider.future);
+    if (!mounted || !hasOlder) return;
+    final days = ref.read(weightHistoryFirestoreDaysProvider);
+    if (days >= kHistoryPaginationMaxDays) return;
+    ref.read(weightHistoryFirestoreDaysProvider.notifier).state =
+        days + kHistoryPaginationStepDays;
   }
 
   @override
   Widget build(BuildContext context) {
-    final recordsAsync = ref.watch(weightRecordsStreamProvider);
+    final l10n = AppLocalizations.of(context)!;
+    final prefs = ref.watch(measurementPrefsProvider).valueOrNull ??
+        MeasurementPrefs.defaultsForDispatcher();
+    final recordsAsync = widget.isActiveTab
+        ? ref.watch(weightRecordsStreamProvider)
+        : ref.read(weightRecordsStreamProvider);
+    final chartRecordsAsync = widget.isActiveTab
+        ? ref.watch(weightRecordsForChartStreamProvider)
+        : ref.read(weightRecordsForChartStreamProvider);
+    final hasOlderAsync = widget.isActiveTab
+        ? ref.watch(hasOlderWeightRecordsProvider)
+        : ref.read(hasOlderWeightRecordsProvider);
+    final chartPrefs = ref.watch(weightChartPrefsProvider).valueOrNull ??
+        WeightChartPrefs.defaults;
+    final chartTimeRange = chartPrefs.timeRange;
+    final chartPercentile = chartPrefs.percentile;
+
+    List<WeightRecord> chartVisibleRecords(List<WeightRecord> raw) => raw
+        .where(
+          (r) => r.id == null || !_deletedWeightIds.contains(r.id),
+        )
+        .toList();
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
           children: [
-            MainAppTitleBar(
-              onTitleTap: widget.onTitleTap,
-              onSettingsTap: widget.onSettingsTap,
-            ),
-            Expanded(
-              child: FutureBuilder<BabyProfile?>(
-                future: _babyProfileFuture,
-                builder: (context, babySnapshot) {
-                  final baby = babySnapshot.data;
+            Positioned.fill(
+              child: ref.watch(babyProfileProvider).when(
+                data: (baby) {
                   final isMale = baby?.isMale ?? true;
 
                   return GestureDetector(
                     onTap: () => FocusScope.of(context).unfocus(),
                     behavior: HitTestBehavior.opaque,
-                    child: SingleChildScrollView(
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: _onWeightHistoryScrollNotification,
+                      child: SingleChildScrollView(
                       controller: widget.scrollController,
                       padding: EdgeInsets.fromLTRB(
                         AppTheme.screenEdgePadding,
-                        AppTheme.contentPaddingTopAfterTitleBar,
+                        MainAppTitleBar.totalHeight +
+                            AppTheme.contentPaddingTopAfterTitleBar,
                         AppTheme.screenEdgePadding,
                         20 + AppTheme.safeBottomPadding(context),
                       ),
@@ -127,7 +203,7 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'Control de Peso',
+                                        l10n.weightTitle,
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleLarge
@@ -146,7 +222,10 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                           CrossAxisAlignment.stretch,
                                       children: [
                                         Text(
-                                          'Peso (kg)',
+                                          weightFieldLabelForPrefs(
+                                            prefs,
+                                            l10n,
+                                          ),
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleSmall
@@ -176,30 +255,33 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                                   minLines: null,
                                                   textAlignVertical:
                                                       TextAlignVertical.center,
-                                                  decoration:
-                                                      const InputDecoration(
-                                                        hintText: 'Ej: 4.5',
-                                                        contentPadding:
-                                                            EdgeInsets.symmetric(
-                                                              horizontal: 20,
-                                                            ),
-                                                        isDense: false,
-                                                      ),
+                                                  decoration: InputDecoration(
+                                                    hintText: weightEntryHint(
+                                                      prefs,
+                                                      l10n,
+                                                    ),
+                                                    contentPadding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 20,
+                                                        ),
+                                                    isDense: false,
+                                                  ),
                                                   validator: (v) {
                                                     if (v == null ||
                                                         v.trim().isEmpty) {
-                                                      return 'Introduce el peso';
+                                                      return l10n
+                                                          .weightValidatorEmpty;
                                                     }
-                                                    final n = double.tryParse(
-                                                      v.trim().replaceAll(
-                                                        ',',
-                                                        '.',
-                                                      ),
+                                                    final kg =
+                                                        parseWeightInputToKg(
+                                                      v,
+                                                      prefs,
                                                     );
-                                                    if (n == null ||
-                                                        n <= 0 ||
-                                                        n > 50) {
-                                                      return 'Peso inválido';
+                                                    if (kg == null ||
+                                                        kg <= 0 ||
+                                                        kg > 50) {
+                                                      return l10n
+                                                          .weightValidatorInvalid;
                                                     }
                                                     return null;
                                                   },
@@ -235,10 +317,10 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                                     visualDensity:
                                                         VisualDensity.compact,
                                                   ),
-                                                  child: const FittedBox(
+                                                  child: FittedBox(
                                                     fit: BoxFit.scaleDown,
                                                     child: Text(
-                                                      'Registrar',
+                                                      l10n.weightRegister,
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                     ),
@@ -252,9 +334,13 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                     ),
                                   ),
                                   const SizedBox(height: 24),
-                                  recordsAsync.when(
+                                  chartRecordsAsync.when(
                                     skipLoadingOnReload: true,
-                                    data: _summaryRow,
+                                    data: (records) => _summaryRow(
+                                      context,
+                                      chartVisibleRecords(records),
+                                      prefs,
+                                    ),
                                     loading: () => const SizedBox(
                                       height: 80,
                                       child: Center(
@@ -262,11 +348,15 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                       ),
                                     ),
                                     error: (e, _) => StreamRecordLoadError(
-                                      message:
-                                          'No se pudieron cargar los pesos. Comprueba la conexión o reintenta.',
-                                      onRetry: () => ref.invalidate(
-                                        weightRecordsStreamProvider,
-                                      ),
+                                      message: l10n.weightStreamError,
+                                      onRetry: () {
+                                        ref.invalidate(
+                                          weightRecordsForChartStreamProvider,
+                                        );
+                                        ref.invalidate(
+                                          weightRecordsStreamProvider,
+                                        );
+                                      },
                                     ),
                                   ),
                                 ],
@@ -274,16 +364,22 @@ class _WeightViewState extends ConsumerState<WeightView> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          recordsAsync.when(
+                          chartRecordsAsync.when(
                             skipLoadingOnReload: true,
-                            data: (records) => Card(
+                            data: (records) {
+                              final visible = chartVisibleRecords(records);
+                              final chartRecords = _weightRecordsInChartRange(
+                                visible,
+                                chartTimeRange,
+                              );
+                              return Card(
                               child: Padding(
                                 padding: const EdgeInsets.all(24),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Evolución',
+                                      l10n.weightEvolution,
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleMedium
@@ -291,17 +387,63 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                             fontWeight: FontWeight.bold,
                                           ),
                                     ),
+                                    const SizedBox(height: 12),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        _ChartFilterPill<WeightPercentile>(
+                                          value: chartPercentile,
+                                          values:
+                                              WeightPercentile.pickerValues,
+                                          labelOf: (p) => p.shortLabel,
+                                          onChanged: (p) => ref
+                                              .read(
+                                                weightChartPrefsProvider
+                                                    .notifier,
+                                              )
+                                              .setPercentile(p),
+                                        ),
+                                        _ChartFilterPill<WeightChartTimeRange>(
+                                          value: chartTimeRange,
+                                          values: WeightChartTimeRange
+                                              .pickerValues,
+                                          labelOf: (r) => r.label(l10n),
+                                          onChanged: (r) => ref
+                                              .read(
+                                                weightChartPrefsProvider
+                                                    .notifier,
+                                              )
+                                              .setTimeRange(r),
+                                        ),
+                                      ],
+                                    ),
                                     const SizedBox(height: 16),
                                     SizedBox(
                                       height: 220,
-                                      child: _WeightChart(
-                                        records: records,
-                                        isMale: isMale,
-                                        birthDate:
-                                            baby?.birthDate ?? DateTime.now(),
-                                      ),
+                                      child: chartRecords.isEmpty
+                                          ? Center(
+                                              child: Text(
+                                                visible.isEmpty
+                                                    ? l10n.weightChartEmpty
+                                                    : l10n
+                                                        .weightChartNoDataInRange,
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  color: AppTheme.textLight,
+                                                ),
+                                              ),
+                                            )
+                                          : _WeightChart(
+                                              records: chartRecords,
+                                              prefs: prefs,
+                                              isMale: isMale,
+                                              birthDate: baby?.birthDate ??
+                                                  DateTime.now(),
+                                              percentile: chartPercentile,
+                                            ),
                                     ),
-                                    if (records.isNotEmpty) ...[
+                                    if (chartRecords.isNotEmpty) ...[
                                       const SizedBox(height: 12),
                                       Row(
                                         crossAxisAlignment:
@@ -323,28 +465,34 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  'Línea de referencia: percentil 50 (mediana) de peso por edad según los estándares de crecimiento infantil de la OMS.',
+                                                  l10n.weightChartCaption(
+                                                    chartPercentile.shortLabel,
+                                                  ),
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .bodySmall
                                                       ?.copyWith(
-                                                        color: AppTheme.textLight,
+                                                        color: AppTheme
+                                                            .textLight,
                                                         height: 1.35,
                                                       ),
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  'Fuente: Organización Mundial de la Salud (OMS) — Child Growth Standards. who.int/tools/child-growth-standards',
+                                                  l10n.weightChartSource,
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .bodySmall
                                                       ?.copyWith(
-                                                        color: AppTheme.primaryBlue,
+                                                        color: AppTheme
+                                                            .primaryBlue,
                                                         height: 1.35,
-                                                        fontStyle: FontStyle.italic,
+                                                        fontStyle:
+                                                            FontStyle.italic,
                                                       ),
                                                 ),
                                               ],
@@ -356,7 +504,8 @@ class _WeightViewState extends ConsumerState<WeightView> {
                                   ],
                                 ),
                               ),
-                            ),
+                            );
+                            },
                             loading: () => const Card(
                               child: SizedBox(
                                 height: 200,
@@ -369,11 +518,15 @@ class _WeightViewState extends ConsumerState<WeightView> {
                               child: Padding(
                                 padding: const EdgeInsets.all(24),
                                 child: StreamRecordLoadError(
-                                  message:
-                                      'No se pudo cargar la gráfica de peso.',
-                                  onRetry: () => ref.invalidate(
-                                    weightRecordsStreamProvider,
-                                  ),
+                                  message: l10n.weightChartLoadError,
+                                  onRetry: () {
+                                    ref.invalidate(
+                                      weightRecordsForChartStreamProvider,
+                                    );
+                                    ref.invalidate(
+                                      weightRecordsStreamProvider,
+                                    );
+                                  },
                                 ),
                               ),
                             ),
@@ -383,41 +536,65 @@ class _WeightViewState extends ConsumerState<WeightView> {
                             skipLoadingOnReload: true,
                             data: (allRecords) {
                               final records = allRecords
-                                  .where((r) => r.id == null || !_deletedWeightIds.contains(r.id))
+                                  .where(
+                                    (r) =>
+                                        r.id == null ||
+                                        !_deletedWeightIds.contains(r.id),
+                                  )
                                   .toList();
+                              final hasOlder = hasOlderAsync.maybeWhen(
+                                data: (v) => v,
+                                orElse: () => false,
+                              );
                               return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Historial',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 12),
-                                if (records.isEmpty)
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Text(
-                                    'Todavía no hay registros. Escribe el peso y pulsa «Registrar» arriba para añadir el primero.',
+                                    l10n.historyTitle,
                                     style: Theme.of(context)
                                         .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          color: AppTheme.textLight,
-                                          height: 1.4,
-                                        ),
-                                  )
-                                else
-                                  ...records.map(
-                                    (r) => _WeightRecordTile(
-                                      record: r,
-                                      onDelete: r.id != null ? () => _deleteWeightRecord(r.id!) : null,
-                                    ),
+                                        .titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
                                   ),
-                              ],
-                            );},
+                                  const SizedBox(height: 12),
+                                  if (records.isEmpty)
+                                    Text(
+                                      hasOlder
+                                          ? l10n.historyScrollLoadMore
+                                          : l10n.weightHistoryEmpty,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: AppTheme.textLight,
+                                            height: 1.4,
+                                          ),
+                                    )
+                                  else
+                                    ...records.map(
+                                      (r) => _WeightRecordTile(
+                                        record: r,
+                                        onDelete: r.id != null
+                                            ? () async {
+                                                final ok =
+                                                    await confirmDeleteRecord(
+                                                  context,
+                                                );
+                                                if (!context.mounted ||
+                                                    !ok) {
+                                                  return;
+                                                }
+                                                _deleteWeightRecord(r.id!);
+                                              }
+                                            : null,
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
                             loading: () => const SizedBox.shrink(),
                             error: (e, _) => StreamRecordLoadError(
-                              message:
-                                  'No se pudo cargar el historial de peso.',
+                              message: l10n.weightHistoryLoadError,
                               onRetry: () =>
                                   ref.invalidate(weightRecordsStreamProvider),
                             ),
@@ -425,17 +602,40 @@ class _WeightViewState extends ConsumerState<WeightView> {
                         ],
                       ),
                     ),
+                    ),
                   );
                 },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, st) => Center(
+                  child: StreamRecordLoadError(
+                    message: l10n.weightStreamError,
+                    onRetry: () => ref.invalidate(babyProfileProvider),
+                  ),
+                ),
               ),
             ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: MainAppTitleBar(
+                onTitleTap: widget.onTitleTap,
+                onSettingsTap: widget.onSettingsTap,
+              ),
+            ),
+            const TitleBarScrollFade(),
           ],
         ),
       ),
     );
   }
 
-  Widget _summaryRow(List<WeightRecord> records) {
+  Widget _summaryRow(
+    BuildContext context,
+    List<WeightRecord> records,
+    MeasurementPrefs prefs,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
     final lastWeight = records.isNotEmpty ? records.first : null;
     final dailyGPerDay = dailyWeightTrendLinearRegressionGramsPerDay(records);
 
@@ -443,10 +643,11 @@ class _WeightViewState extends ConsumerState<WeightView> {
       children: [
         Expanded(
           child: _SummaryCard(
-            title: 'Peso Actual',
+            title: l10n.weightCurrentCard,
             value: lastWeight != null
-                ? '${lastWeight.weightKg.toStringAsFixed(2)} kg'
-                : 'Sin datos',
+                ? formatWeightFromKg(lastWeight.weightKg, prefs, l10n)
+                : l10n.weightNoData,
+            valueIsPlaceholder: lastWeight == null,
             showTrendIcon: false,
             valueColor: lastWeight != null ? Colors.black : null,
           ),
@@ -454,10 +655,15 @@ class _WeightViewState extends ConsumerState<WeightView> {
         const SizedBox(width: 12),
         Expanded(
           child: _SummaryCard(
-            title: 'Tendencia diaria',
+            title: l10n.weightTrendCard,
             value: dailyGPerDay != null
-                ? '${dailyGPerDay >= 0 ? '+' : ''}${dailyGPerDay.toStringAsFixed(1)} g'
-                : '-',
+                ? formatWeightTrendCompact(
+                    dailyGPerDay,
+                    prefs,
+                    l10n,
+                  )
+                : l10n.weightDash,
+            valueIsPlaceholder: dailyGPerDay == null,
             showTrendIcon: dailyGPerDay != null,
             isPositive: dailyGPerDay != null && dailyGPerDay >= 0,
           ),
@@ -470,6 +676,7 @@ class _WeightViewState extends ConsumerState<WeightView> {
 class _SummaryCard extends StatelessWidget {
   final String title;
   final String value;
+  final bool valueIsPlaceholder;
   final bool isPositive;
   final bool showTrendIcon;
 
@@ -479,6 +686,7 @@ class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.title,
     required this.value,
+    required this.valueIsPlaceholder,
     this.isPositive = true,
     this.showTrendIcon = true,
     this.valueColor,
@@ -486,7 +694,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final empty = value == 'Sin datos' || value == '-';
+    final empty = valueIsPlaceholder;
     Color resolvedColor;
     if (empty) {
       resolvedColor = AppTheme.textLight;
@@ -545,13 +753,17 @@ class _SummaryCard extends StatelessWidget {
 
 class _WeightChart extends StatelessWidget {
   final List<WeightRecord> records;
+  final MeasurementPrefs prefs;
   final bool isMale;
   final DateTime birthDate;
+  final WeightPercentile percentile;
 
   const _WeightChart({
     required this.records,
+    required this.prefs,
     required this.isMale,
     required this.birthDate,
+    required this.percentile,
   });
 
   double _ageInMonths(DateTime date) {
@@ -574,10 +786,12 @@ class _WeightChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final dateCode = dateFormatLanguageCode(context);
     if (records.isEmpty) {
       return Center(
         child: Text(
-          'Sin datos aún',
+          l10n.weightChartEmpty,
           style: TextStyle(color: AppTheme.textLight),
         ),
       );
@@ -605,19 +819,27 @@ class _WeightChart extends StatelessWidget {
         .map((r) => r.weightKg)
         .reduce((a, b) => a > b ? a : b);
 
-    // Percentil P50 en el rango de edad de los registros
+    // Percentil de referencia en el rango de edad de los registros
     final minMonth = _ageInMonths(
       sortedRecords.first.dateTime,
     ).clamp(0.0, 12.0);
     final maxMonth = _ageInMonths(sortedRecords.last.dateTime).clamp(0.0, 12.0);
-    final p50Min = PercentilesData.getP50Weight(isMale, minMonth);
-    final p50Max = PercentilesData.getP50Weight(isMale, maxMonth);
-    final p50Low = p50Min < p50Max ? p50Min : p50Max;
-    final p50High = p50Min > p50Max ? p50Min : p50Max;
+    final refMinKg = PercentilesData.getPercentileWeight(
+      isMale,
+      percentile,
+      minMonth,
+    );
+    final refMaxKg = PercentilesData.getPercentileWeight(
+      isMale,
+      percentile,
+      maxMonth,
+    );
+    final refLow = refMinKg < refMaxKg ? refMinKg : refMaxKg;
+    final refHigh = refMinKg > refMaxKg ? refMinKg : refMaxKg;
 
     // Rango Y: incluir siempre pesos y percentil para que la línea del percentil sea visible
-    final dataMinY = minWeight < p50Low ? minWeight : p50Low;
-    final dataMaxY = maxWeight > p50High ? maxWeight : p50High;
+    final dataMinY = minWeight < refLow ? minWeight : refLow;
+    final dataMaxY = maxWeight > refHigh ? maxWeight : refHigh;
     final minY = (dataMinY - 0.5).clamp(0.0, 20.0);
     final maxY = (dataMaxY + 0.5).clamp(0.0, 20.0);
 
@@ -625,7 +847,7 @@ class _WeightChart extends StatelessWidget {
       final age = _ageInMonths(r.dateTime);
       return FlSpot(
         _daysSince(origin, r.dateTime),
-        PercentilesData.getP50Weight(isMale, age),
+        PercentilesData.getPercentileWeight(isMale, percentile, age),
       );
     }).toList();
 
@@ -648,11 +870,16 @@ class _WeightChart extends StatelessWidget {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 32,
-              getTitlesWidget: (value, meta) => Text(
-                value.toStringAsFixed(1),
-                style: TextStyle(color: AppTheme.textLight, fontSize: 10),
-              ),
+              reservedSize: prefs.weight == WeightUnitMode.metric ? 32 : 38,
+              getTitlesWidget: (value, meta) {
+                final label = prefs.weight == WeightUnitMode.metric
+                    ? value.toStringAsFixed(1)
+                    : (value * 2.2046226218).toStringAsFixed(1);
+                return Text(
+                  label,
+                  style: TextStyle(color: AppTheme.textLight, fontSize: 10),
+                );
+              },
               interval: 0.5,
             ),
           ),
@@ -672,7 +899,7 @@ class _WeightChart extends StatelessWidget {
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    DateFormat('d/M').format(labelDate),
+                    DateFormat('d/M', dateCode).format(labelDate),
                     style: TextStyle(color: AppTheme.textLight, fontSize: 10),
                   ),
                 );
@@ -693,7 +920,7 @@ class _WeightChart extends StatelessWidget {
             LineChartBarData(
               spots: refSpots,
               isCurved: true,
-              color: AppTheme.primaryGreen.withValues(alpha: 0.4),
+              color: AppTheme.textLight.withValues(alpha: 0.45),
               barWidth: 1.5,
               isStrokeCapRound: true,
               dotData: const FlDotData(show: false),
@@ -702,19 +929,29 @@ class _WeightChart extends StatelessWidget {
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            color: AppTheme.textDark,
+            color: AppTheme.primaryGreen,
             barWidth: 2.5,
             isStrokeCapRound: true,
             dotData: FlDotData(
               show: true,
               getDotPainter: (spot, percent, barData, index) =>
                   FlDotCirclePainter(
-                    radius: 4,
-                    color: AppTheme.textDark,
+                    radius: 2,
+                    color: AppTheme.primaryGreen,
                     strokeWidth: 0,
                   ),
             ),
-            belowBarData: BarAreaData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppTheme.primaryGreen.withValues(alpha: 0.14),
+                  AppTheme.primaryGreen.withValues(alpha: 0),
+                ],
+              ),
+            ),
           ),
         ],
         lineTouchData: LineTouchData(
@@ -743,7 +980,7 @@ class _WeightChart extends StatelessWidget {
               );
               final dateStr = DateFormat(
                 'd MMM yyyy, HH:mm',
-                'es',
+                dateCode,
               ).format(touchedDate);
 
               final hasRef = refSpots.length > 1;
@@ -758,18 +995,28 @@ class _WeightChart extends StatelessWidget {
 
               var refKg = refTouchedY;
               if (refKg == null && hasRef) {
-                refKg = PercentilesData.getP50Weight(
+                refKg = PercentilesData.getPercentileWeight(
                   isMale,
+                  percentile,
                   _ageInMonths(touchedDate),
                 );
               }
 
               final lines = <String>[dateStr];
               if (hasRef) {
-                lines.add('P50 (OMS): ${refKg!.toStringAsFixed(2)} kg');
+                lines.add(
+                  l10n.weightTooltipPercentile(
+                    percentile.shortLabel,
+                    formatWeightFromKg(refKg!, prefs, l10n),
+                  ),
+                );
               }
               if (dataKg != null) {
-                lines.add('Pesada: ${dataKg.toStringAsFixed(2)} kg');
+                lines.add(
+                  l10n.weightTooltipWeighIn(
+                    formatWeightFromKg(dataKg, prefs, l10n),
+                  ),
+                );
               }
 
               const tipStyle = TextStyle(
@@ -799,14 +1046,18 @@ class _WeightChart extends StatelessWidget {
   }
 }
 
-class _WeightRecordTile extends StatelessWidget {
+class _WeightRecordTile extends ConsumerWidget {
   final WeightRecord record;
   final VoidCallback? onDelete;
 
   const _WeightRecordTile({required this.record, this.onDelete});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final prefs = ref.watch(measurementPrefsProvider).valueOrNull ??
+        MeasurementPrefs.defaultsForDispatcher();
+    final dateCode = dateFormatLanguageCode(context);
     final accent = AppTheme.weightHistoryAccent;
     final borderRadius = BorderRadius.circular(AppTheme.homeCardRadius);
     return Card(
@@ -821,7 +1072,7 @@ class _WeightRecordTile extends StatelessWidget {
             children: [
               Container(
                 width: AppTheme.historyRecordStripeWidth,
-                color: accent,
+                decoration: AppTheme.historyRecordStripeDecoration(accent),
               ),
               Padding(
                 padding: AppTheme.historyRecordLeadingPadding,
@@ -848,12 +1099,15 @@ class _WeightRecordTile extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${record.weightKg.toStringAsFixed(2)} kg',
+                        formatWeightFromKg(record.weightKg, prefs, l10n),
                         style: AppTheme.historyRecordPrimaryValueStyle(accent),
                       ),
                       SizedBox(height: AppTheme.historyRecordDetailToDateGap),
                       Text(
-                        DateFormat('d MMM, HH:mm').format(record.dateTime),
+                        DateFormat(
+                          'd MMM, HH:mm',
+                          dateCode,
+                        ).format(record.dateTime),
                         style: AppTheme.historyRecordDateTimeStyle(context),
                       ),
                     ],
@@ -871,7 +1125,8 @@ class _WeightRecordTile extends StatelessWidget {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.edit, size: 20),
-                          onPressed: () => _showEditDialog(context, record),
+                          onPressed: () =>
+                              _showEditDialog(context, ref, record),
                         ),
                         IconButton(
                           icon: const Icon(
@@ -893,8 +1148,17 @@ class _WeightRecordTile extends StatelessWidget {
     );
   }
 
-  void _showEditDialog(BuildContext context, WeightRecord record) {
-    final controller = TextEditingController(text: record.weightKg.toString());
+  void _showEditDialog(
+    BuildContext context,
+    WidgetRef ref,
+    WeightRecord record,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    final prefs = ref.read(measurementPrefsProvider).valueOrNull ??
+        MeasurementPrefs.defaultsForDispatcher();
+    final controller = TextEditingController(
+      text: weightInputDisplayFromKg(record.weightKg, prefs),
+    );
     var selectedDate = DateTime(
       record.dateTime.year,
       record.dateTime.month,
@@ -907,12 +1171,12 @@ class _WeightRecordTile extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => EditBottomSheet(
-          title: 'Editar peso',
+          title: l10n.weightEditTitle,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Peso (kg)',
+                weightFieldLabelForPrefs(prefs, l10n),
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textDark,
@@ -926,7 +1190,7 @@ class _WeightRecordTile extends StatelessWidget {
                 ),
                 textInputAction: TextInputAction.done,
                 decoration: InputDecoration(
-                  hintText: 'Ej: 4.5',
+                  hintText: weightEntryHint(prefs, l10n),
                   filled: true,
                   fillColor: AppTheme.fieldBackground,
                   border: OutlineInputBorder(
@@ -954,10 +1218,8 @@ class _WeightRecordTile extends StatelessWidget {
           ),
           onCancel: () => Navigator.pop(ctx),
           onSave: () async {
-            final w = double.tryParse(
-              controller.text.trim().replaceAll(',', '.'),
-            );
-            if (w != null && w > 0) {
+            final kg = parseWeightInputToKg(controller.text, prefs);
+            if (kg != null && kg > 0 && kg <= 50) {
               final dt = DateTime(
                 selectedDate.year,
                 selectedDate.month,
@@ -966,10 +1228,66 @@ class _WeightRecordTile extends StatelessWidget {
                 selectedTime.minute,
               );
               await IsarService.updateWeightRecord(
-                record.copyWith(weightKg: w, dateTime: dt),
+                record.copyWith(weightKg: kg, dateTime: dt),
               );
               if (ctx.mounted) Navigator.pop(ctx);
             }
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Selector compacto en forma de píldora usado para filtrar la gráfica de peso
+/// (rango temporal y percentil de referencia).
+class _ChartFilterPill<T> extends StatelessWidget {
+  final T value;
+  final List<T> values;
+  final String Function(T) labelOf;
+  final ValueChanged<T> onChanged;
+
+  const _ChartFilterPill({
+    required this.value,
+    required this.values,
+    required this.labelOf,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.softPrimaryFill,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.cardOutline),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          isDense: true,
+          borderRadius: BorderRadius.circular(16),
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 18,
+            color: AppTheme.palettePrimary,
+          ),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppTheme.palettePrimary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+          items: values
+              .map(
+                (v) => DropdownMenuItem<T>(
+                  value: v,
+                  child: Text(labelOf(v)),
+                ),
+              )
+              .toList(),
+          onChanged: (v) {
+            if (v != null) onChanged(v);
           },
         ),
       ),

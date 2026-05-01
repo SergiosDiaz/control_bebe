@@ -1,0 +1,319 @@
+{"key":"appTitle","es":"Mibebé","en":"My Baby Diary"}
+{"key":"navHome","es":"INICIO","en":"HOME"}
+{"key":"navDiapers","es":"PAÑALES","en":"DIAPERS"}
+{"key":"navFeeding","es":"ALIMENTACIÓN","en":"FEEDING"}
+{"key":"navWeight","es":"PESO","en":"WEIGHT"}
+{"key":"commonCancel","es":"Cancelar","en":"Cancel"}
+{"key":"commonSave","es":"Guardar","en":"Save"}
+{"key":"commonRetry","es":"Reintentar","en":"Retry"}
+{"key":"commonDelete","es":"Eliminar","en":"Delete"}
+{"key":"commonEdit","es":"Editar","en":"Edit"}
+{"key":"commonDate","es":"Fecha","en":"Date"}
+{"key":"commonTime","es":"Hora","en":"Time"}
+{"key":"commonTimeStart","es":"Hora inicio","en":"Start time"}
+{"key":"commonTimeEnd","es":"Hora fin","en":"End time"}
+{"key":"commonGenderBoy","es":"Niño","en":"Boy"}
+{"key":"commonGenderGirl","es":"Niña","en":"Girl"}
+{"key":"commonSend","es":"Enviar","en":"Send"}
+{"key":"commonNext","es":"Siguiente","en":"Next"}
+{"key":"commonExit","es":"Salir","en":"Exit"}
+{"key":"historyTitle","es":"Historial","en":"History"}
+{"key":"historyScrollLoadMore","es":"Desliza hasta el final para cargar tres días más de historial.","en":"Scroll to the bottom to load three more days of history."}
+{"key":"today","es":"Hoy","en":"Today"}
+{"key":"yesterday","es":"Ayer","en":"Yesterday"}
+{"key":"timeSuffixMinute","es":"min","en":"min"}
+{"key":"timeSuffixHour","es":"h","en":"h"}
+{"key":"timeSuffixSecond","es":"s","en":"s"}
+{"key":"timeHoursOnly","es":"{h}h","en":"{h}h"}
+{"key":"timeHoursMinutes","es":"{h}h {m} min","en":"{h}h {m} min"}
+{"key":"timeMinutesOnly","es":"{m} min","en":"{m} min"}
+{"key":"durationMinutesSeconds","es":"{m}m {s}s","en":"{m}m {s}s"}
+{"key":"durationHoursMinutes","es":"{h}h {m}m","en":"{h}h {m}m"}
+{"key":"durationHoursMinutesSeconds","es":"{h}h {m}m {s}s","en":"{h}h {m}m {s}s"}
+{"key":"durationHoursOnly","es":"{h}h","en":"{h}h"}
+{"key":"feedingIntervalHoursOne","es":"1 hora","en":"1 hour"}
+{"key":"feedingIntervalHoursN","es":"{n} horas","en":"{n} hours"}
+{"key":"feedingIntervalHoursMinutes","es":"{h}h {m}min","en":"{h}h {m}min"}
+{"key":"profileDefaultBabyName","es":"Bebé","en":"Baby"}
+{"key":"profileWeightLabel","es":"PESO","en":"WEIGHT"}
+{"key":"profileHeightLabel","es":"ALTURA","en":"HEIGHT"}
+{"key":"babyAgeMonthsOneDaysOne","es":"1 MES, 1 DÍA","en":"1 MONTH, 1 DAY"}
+{"key":"babyAgeMonthsOneDaysN","es":"1 MES, {days} DÍAS","en":"1 MONTH, {days} DAYS"}
+{"key":"babyAgeMonthsNDaysOne","es":"{months} MESES, 1 DÍA","en":"{months} MONTHS, 1 DAY"}
+{"key":"babyAgeMonthsNDaysN","es":"{months} MESES, {days} DÍAS","en":"{months} MONTHS, {days} DAYS"}
+{"key":"monthiversaryOne","es":"¡Hoy cumple 1 mes!","en":"Today turns 1 month old!"}
+{"key":"monthiversaryN","es":"¡Hoy cumple {months} meses!","en":"Today turns {months} months old!"}
+{"key":"monthiversarySemanticsHint","es":"Pulsa para confeti; hasta dos veces hasta que termine","en":"Tap for confetti; up to twice until it finishes"}
+{"key":"homeSummaryTitle","es":"Resumen de Hoy","en":"Today's summary"}
+{"key":"homeLastFeedLabel","es":"ÚLTIMA TOMA","en":"LAST FEED"}
+{"key":"homeLastFeedAgo","es":"Hace {time}","en":"{time} ago"}
+{"key":"homeNextFeedSoon","es":"Próxima toma pronto","en":"Next feed soon"}
+{"key":"homeNextFeedIn","es":"Próxima toma en {time}","en":"Next feed in {time}"}
+{"key":"homeNoFeedingsYet","es":"Sin tomas registradas aún. Toca para anotar la primera.","en":"No feeds logged yet. Tap to add the first one."}
+{"key":"homeWeightNoRecords","es":"No hay registros de peso. Toca para añadir el primero.","en":"No weight entries. Tap to add the first one."}
+{"key":"homeWeightTrendGramsPerDay","es":"{sign}{value} g/día","en":"{sign}{value} g/day"}
+{"key":"homeWeightTrendOuncesPerDay","es":"{sign}{value} oz/día","en":"{sign}{value} oz/day"}
+{"key":"homeWeightLast","es":"Último: {date}","en":"Last: {date}"}
+{"key":"homeDiapersNoRecords","es":"No hay pañales registrados. Toca para añadir el primero.","en":"No diaper changes. Tap to add the first one."}
+{"key":"homeDiapersWetDirty","es":"{wet} mojados · {dirty} sucios","en":"{wet} wet · {dirty} dirty"}
+{"key":"homeDiaperChangesOne","es":"1 cambio","en":"1 change"}
+{"key":"homeDiaperChangesN","es":"{n} cambios","en":"{n} changes"}
+{"key":"homeTipTitle","es":"Consejo del día ✨","en":"Tip of the day ✨"}
+{"key":"homeTipFallback","es":"Los bebés pueden reconocer la voz de su madre desde el útero. Hablarles con calma refuerza ese vínculo.","en":"Babies can recognize their caregiver's voice before birth. Calm talking helps build that bond."}
+{"key":"sabiasQueNoBirthDate","es":"Añade la fecha de nacimiento del bebé en ajustes para ver consejos según su edad.","en":"Add your baby's birth date in settings to see age-matched tips."}
+{"key":"homeConfigureProfileFirst","es":"Configura primero el perfil del bebé en Ajustes","en":"Set up your baby's profile in Settings first"}
+{"key":"homePickPhoto","es":"Elegir foto","en":"Choose photo"}
+{"key":"homeRemovePhoto","es":"Quitar foto del perfil","en":"Remove profile photo"}
+{"key":"homePhotoRemoved","es":"Foto del perfil eliminada","en":"Profile photo removed"}
+{"key":"homePhotoRemoveError","es":"Error al quitar la foto: {error}","en":"Could not remove photo: {error}"}
+{"key":"homePhotoUpdated","es":"Foto actualizada","en":"Photo updated"}
+{"key":"homePhotoUploadError","es":"Error al subir la foto: {error}","en":"Could not upload photo: {error}"}
+{"key":"feedingTitle","es":"Alimentación","en":"Feeding"}
+{"key":"feedingSessionType","es":"Tipo de toma","en":"Feed type"}
+{"key":"feedingBreast","es":"Pecho","en":"Breast"}
+{"key":"feedingLeft","es":"Izquierdo","en":"Left"}
+{"key":"feedingRight","es":"Derecho","en":"Right"}
+{"key":"feedingBottle","es":"Biberón","en":"Bottle"}
+{"key":"feedingSolidFood","es":"Sólidos","en":"Solids"}
+{"key":"solidFoodTitle","es":"Alimento sólido","en":"Solid food"}
+{"key":"solidFoodNameLabel","es":"Qué ha comido","en":"What they ate"}
+{"key":"solidFoodNameHint","es":"Ej: puré de manzana","en":"e.g. apple purée"}
+{"key":"solidFoodQuantityLabel","es":"Cantidad","en":"Amount"}
+{"key":"solidFoodUnitGrams","es":"g (gramos)","en":"g (grams)"}
+{"key":"solidFoodUnitUnits","es":"u (unidades)","en":"units"}
+{"key":"solidFoodUnitGramShort","es":"g","en":"g"}
+{"key":"solidFoodUnitUnitsShort","es":"u","en":"u"}
+{"key":"solidFoodQuantityHintGrams","es":"Ej: 40 o 0,47 (coma o punto)","en":"e.g. 40 or 0.47 (comma or dot)"}
+{"key":"solidFoodQuantityHintUnits","es":"Solo número entero, ej: 2","en":"Whole number only, e.g. 2"}
+{"key":"solidFoodValidatorNameEmpty","es":"Indica qué ha comido","en":"Enter what they ate"}
+{"key":"solidFoodValidatorQuantityEmpty","es":"Indica la cantidad","en":"Enter the amount"}
+{"key":"solidFoodValidatorQuantityInvalid","es":"Número entero entre 1 y {max}","en":"Whole number from 1 to {max}"}
+{"key":"solidFoodValidatorQuantityParse","es":"Formato no válido: solo números y una coma o punto decimal (ej. 0,47).","en":"Invalid format: use digits and at most one decimal comma or dot (e.g. 0.47)."}
+{"key":"solidFoodValidatorUnitsNoDecimals","es":"En unidades usa solo números enteros, sin coma ni punto.","en":"For units, use a whole number only (no decimals)."}
+{"key":"solidFoodValidatorGramsPositive","es":"El peso en gramos debe ser mayor que 0.","en":"Weight in grams must be greater than zero."}
+{"key":"solidFoodValidatorGramsRange","es":"El peso no puede superar {max} g.","en":"Weight cannot exceed {max} g."}
+{"key":"feedingChooseSideTitle","es":"¿Qué lado?","en":"Which side?"}
+{"key":"feedingChooseSideSubtitle","es":"Elige el pecho para iniciar el cronómetro.","en":"Pick a side to start the timer."}
+{"key":"feedingEditSolid","es":"Editar sólidos","en":"Edit solids"}
+{"key":"feedingStop","es":"Parar","en":"Stop"}
+{"key":"feedingActiveTimer","es":"Cronómetro activo: {side}","en":"Timer running: {side}"}
+{"key":"feedingSideLeft","es":"Izquierdo","en":"Left"}
+{"key":"feedingSideRight","es":"Derecho","en":"Right"}
+{"key":"feedingHistoryEmpty","es":"Todavía no hay registros. Usa «Pecho», «Biberón» o «Sólidos» arriba para añadir la primera.","en":"No entries yet. Use “Breast”, “Bottle”, or “Solids” above to add the first one."}
+{"key":"feedingSessionCountOne","es":"1 toma","en":"1 feed"}
+{"key":"feedingSessionCountN","es":"{n} tomas","en":"{n} feeds"}
+{"key":"feedingEditBottle","es":"Editar biberón","en":"Edit bottle"}
+{"key":"feedingEditSession","es":"Editar toma","en":"Edit feed"}
+{"key":"feedingAmountMl","es":"Cantidad (ml)","en":"Amount (ml)"}
+{"key":"hintExampleMl","es":"Ej: 120","en":"e.g. 120"}
+{"key":"feedingStreamError","es":"No se pudieron cargar las tomas. Reintenta o comprueba la conexión.","en":"Could not load feeds. Retry or check your connection."}
+{"key":"lastFeedDetailLeftMinutes","es":"Izquierda • {minutes} min","en":"Left • {minutes} min"}
+{"key":"lastFeedDetailLeft","es":"Izquierda","en":"Left"}
+{"key":"lastFeedDetailRightMinutes","es":"Derecha • {minutes} min","en":"Right • {minutes} min"}
+{"key":"lastFeedDetailRight","es":"Derecha","en":"Right"}
+{"key":"lastFeedDetailBottleVolume","es":"Biberón • {volume}","en":"Bottle • {volume}"}
+{"key":"lastFeedDetailSolid","es":"Sólidos","en":"Solids"}
+{"key":"diapersTitle","es":"Control de Pañales","en":"Diaper log"}
+{"key":"diapersChangeType","es":"Tipo de cambio","en":"Change type"}
+{"key":"diaperWet","es":"Mojado","en":"Wet"}
+{"key":"diaperDirty","es":"Sucio","en":"Dirty"}
+{"key":"diaperBoth","es":"Ambos","en":"Both"}
+{"key":"diapersRegisterButton","es":"Registrar Cambio de Pañal","en":"Log diaper change"}
+{"key":"diapersHistoryEmpty","es":"Todavía no hay registros. Usa «Registrar cambio de pañal» arriba para añadir el primero.","en":"No entries yet. Use “Log diaper change” above to add the first one."}
+{"key":"diaperChangeCountOne","es":"1 cambio","en":"1 change"}
+{"key":"diaperChangeCountN","es":"{n} cambios","en":"{n} changes"}
+{"key":"diapersStreamError","es":"No se pudieron cargar los pañales. Reintenta o comprueba la conexión.","en":"Could not load diapers. Retry or check your connection."}
+{"key":"diapersEditRecord","es":"Editar registro","en":"Edit entry"}
+{"key":"diapersTypeLabel","es":"Tipo","en":"Type"}
+{"key":"weightTitle","es":"Control de Peso","en":"Weight log"}
+{"key":"weightFieldLabelMetric","es":"Peso (kg)","en":"Weight (kg)"}
+{"key":"weightFieldLabelImperial","es":"Peso (lb)","en":"Weight (lb)"}
+{"key":"hintExampleWeight","es":"Ej: 4.5","en":"e.g. 4.5"}
+{"key":"weightRegister","es":"Registrar","en":"Log"}
+{"key":"weightValidatorEmpty","es":"Introduce el peso","en":"Enter weight"}
+{"key":"weightValidatorInvalid","es":"Peso inválido","en":"Invalid weight"}
+{"key":"weightStreamError","es":"No se pudieron cargar los pesos. Comprueba la conexión o reintenta.","en":"Could not load weights. Check connection or retry."}
+{"key":"weightEvolution","es":"Evolución","en":"Trend"}
+{"key":"weightChartCaption","es":"Línea de referencia: percentil 50 (mediana) de peso por edad según los estándares de crecimiento infantil de la OMS.","en":"Reference line: 50th percentile (median) weight-for-age from WHO Child Growth Standards."}
+{"key":"weightChartSource","es":"Fuente: Organización Mundial de la Salud (OMS) — Child Growth Standards. who.int/tools/child-growth-standards","en":"Source: World Health Organization (WHO) — Child Growth Standards. who.int/tools/child-growth-standards"}
+{"key":"weightChartLoadError","es":"No se pudo cargar la gráfica de peso.","en":"Could not load the weight chart."}
+{"key":"weightHistoryLoadError","es":"No se pudo cargar el historial de peso.","en":"Could not load weight history."}
+{"key":"weightHistoryEmpty","es":"Todavía no hay registros. Escribe el peso y pulsa «Registrar» arriba para añadir el primero.","en":"No entries yet. Enter weight and tap “Log” above to add the first one."}
+{"key":"weightCurrentCard","es":"Peso Actual","en":"Current weight"}
+{"key":"weightTrendCard","es":"Tendencia diaria","en":"Daily trend"}
+{"key":"weightTrendGramsCompact","es":"{sign}{value}g","en":"{sign}{value}g"}
+{"key":"weightTrendOuncesCompact","es":"{sign}{value} oz","en":"{sign}{value} oz"}
+{"key":"weightNoData","es":"Sin datos","en":"No data"}
+{"key":"weightDash","es":"-","en":"-"}
+{"key":"weightChartEmpty","es":"Sin datos aún","en":"No data yet"}
+{"key":"weightTooltipP50","es":"P50 (OMS): {value}","en":"P50 (WHO): {value}"}
+{"key":"weightTooltipWeighIn","es":"Pesada: {value}","en":"Weigh-in: {value}"}
+{"key":"weightEditTitle","es":"Editar peso","en":"Edit weight"}
+{"key":"bottleTitle","es":"Biberón","en":"Bottle"}
+{"key":"bottleValidatorEmpty","es":"Introduce la cantidad","en":"Enter amount"}
+{"key":"bottleValidatorInvalid","es":"Cantidad inválida","en":"Invalid amount"}
+{"key":"settingsTitle","es":"Ajustes","en":"Settings"}
+{"key":"settingsBabyProfile","es":"Perfil del Bebé","en":"Baby profile"}
+{"key":"settingsShareFamily","es":"Compartir Familia","en":"Share family"}
+{"key":"settingsSuggestedFeedings","es":"Tomas sugeridas","en":"Suggested feeds"}
+{"key":"settingsName","es":"Nombre","en":"Name"}
+{"key":"settingsBirthDate","es":"Fecha de nacimiento","en":"Date of birth"}
+{"key":"settingsHeight","es":"Altura","en":"Height"}
+{"key":"settingsNoProfile","es":"Sin perfil configurado","en":"No profile configured"}
+{"key":"settingsEditProfile","es":"Editar perfil","en":"Edit profile"}
+{"key":"settingsShareQrIntro","es":"Invita a otros miembros de la familia escaneando el código QR.","en":"Invite family members by scanning the QR code."}
+{"key":"settingsFeedingConfigureFirst","es":"Configura primero el perfil del bebé.","en":"Set up your baby's profile first."}
+{"key":"settingsFeedingIntro","es":"Define cada cuánto suele comer el bebé","en":"Set how often your baby usually feeds"}
+{"key":"settingsFeedingInterval","es":"Intervalo entre tomas","en":"Time between feeds"}
+{"key":"settingsNotifyTitle","es":"Activar notificaciones","en":"Enable notifications"}
+{"key":"settingsNotifySubtitle","es":"Al activarlo, te llegará una notificación cuando le toque la siguiente toma","en":"When on, you'll get a notification when the next feed is due"}
+{"key":"settingsNotifyPermission","es":"Activa las notificaciones en los ajustes del sistema para recibir el aviso.","en":"Turn on notifications in system settings to get reminders."}
+{"key":"settingsSignOutSection","es":"Cerrar sesión","en":"Sign out"}
+{"key":"settingsSignOutButton","es":"Cerrar sesión","en":"Sign out"}
+{"key":"settingsDeleteSection","es":"Eliminar cuenta","en":"Delete account"}
+{"key":"settingsDeleteIntro","es":"Elimina tu cuenta y tus datos de acceso. Si eres el único miembro de la familia, también se eliminarán todos los datos del bebé.","en":"Deletes your account and sign-in data. If you're the only family member, all baby data will be removed too."}
+{"key":"settingsDeleteAccount","es":"Eliminar mi cuenta","en":"Delete my account"}
+{"key":"settingsDeleting","es":"Eliminando...","en":"Deleting..."}
+{"key":"settingsFamilyFirebaseOnly","es":"Compartir familia solo disponible con Firebase.","en":"Family sharing is only available with Firebase."}
+{"key":"settingsShowQr","es":"Mostrar QR para invitar","en":"Show invite QR"}
+{"key":"settingsHideQr","es":"Ocultar QR","en":"Hide QR"}
+{"key":"settingsQrCaption","es":"Escanea para unirte a la familia","en":"Scan to join the family"}
+{"key":"editBabyProfileTitle","es":"Editar perfil del bebé","en":"Edit baby profile"}
+{"key":"labelName","es":"Nombre","en":"Name"}
+{"key":"labelGender","es":"Género","en":"Gender"}
+{"key":"heightFieldLabel","es":"Altura (cm)","en":"Height (cm)"}
+{"key":"heightFieldHint","es":"Opcional, ej. 58","en":"Optional, e.g. 58"}
+{"key":"heightInvalid","es":"Altura inválida","en":"Invalid height"}
+{"key":"heightRangeError","es":"Altura debe estar entre 25 y 120 cm","en":"Height must be between 25 and 120 cm"}
+{"key":"deleteAccountTitle","es":"Eliminar cuenta","en":"Delete account"}
+{"key":"deleteAccountBody","es":"Esta acción eliminará permanentemente tu cuenta y tus datos de acceso. Si eres el único miembro de la familia, también se eliminarán todos los datos del bebé.\n\nEsta operación no se puede deshacer. ¿Estás seguro?","en":"This will permanently delete your account and sign-in data. If you're the only family member, all baby data will be removed too.\n\nThis can't be undone. Are you sure?"}
+{"key":"deleteAccountConfirm","es":"Eliminar cuenta","en":"Delete account"}
+{"key":"deleteAccountError","es":"Error al eliminar la cuenta: {error}","en":"Could not delete account: {error}"}
+{"key":"signOutTitle","es":"Cerrar sesión","en":"Sign out"}
+{"key":"signOutBody","es":"¿Estás seguro de que quieres cerrar sesión?","en":"Are you sure you want to sign out?"}
+{"key":"signOutConfirm","es":"Cerrar sesión","en":"Sign out"}
+{"key":"signOutError","es":"Error al cerrar sesión: {error}","en":"Could not sign out: {error}"}
+{"key":"loginForgotPasswordTitle","es":"Recuperar contraseña","en":"Reset password"}
+{"key":"loginForgotPasswordBody","es":"Te enviaremos un enlace para elegir una contraseña nueva.","en":"We'll email you a link to choose a new password."}
+{"key":"loginEmailHint","es":"Tu correo electrónico","en":"Your email"}
+{"key":"loginResetInvalidEmail","es":"Introduce un correo válido","en":"Enter a valid email"}
+{"key":"loginResetCheckEmail","es":"Revisa tu correo (y spam) para restablecer la contraseña","en":"Check your email (and spam) to reset your password"}
+{"key":"loginResetSendFail","es":"No se pudo enviar el correo. Inténtalo más tarde.","en":"Could not send the email. Try again later."}
+{"key":"loginHeaderTitle","es":"Mibebé","en":"My Baby Diary"}
+{"key":"loginPasswordHint","es":"Tu contraseña","en":"Your password"}
+{"key":"loginForgotLink","es":"¿Has olvidado tu contraseña?","en":"Forgot your password?"}
+{"key":"loginValidatorEmailEmpty","es":"Introduce tu correo","en":"Enter your email"}
+{"key":"loginValidatorEmailInvalid","es":"Correo no válido","en":"Invalid email"}
+{"key":"loginValidatorPasswordEmpty","es":"Introduce tu contraseña","en":"Enter your password"}
+{"key":"loginSignIn","es":"Iniciar Sesión","en":"Sign in"}
+{"key":"loginGuestQr","es":"Unirme con código QR (sin cuenta)","en":"Join with QR code (no account)"}
+{"key":"loginOrWith","es":"O INICIA SESIÓN CON","en":"OR SIGN IN WITH"}
+{"key":"loginNoAccount","es":"¿No tienes cuenta? ","en":"Don't have an account? "}
+{"key":"loginRegisterLink","es":"Regístrate","en":"Sign up"}
+{"key":"loginErrorGeneric","es":"Error al iniciar sesión","en":"Sign-in error"}
+{"key":"loginErrorGoogle","es":"Error al iniciar sesión con Google","en":"Google sign-in error"}
+{"key":"loginErrorApple","es":"Error al iniciar sesión con Apple","en":"Apple sign-in error"}
+{"key":"loginGuestNeedsFirebase","es":"Hace falta Firebase para unirte con código QR","en":"Firebase is required to join with a QR code"}
+{"key":"loginGuestNotAllowed","es":"Invitado no disponible. En Firebase Console → Authentication → Sign-in method, activa \"Anónimo\".","en":"Anonymous sign-in is disabled. In Firebase Console → Authentication → Sign-in method, enable Anonymous."}
+{"key":"loginGuestFailed","es":"No se pudo entrar como invitado","en":"Could not sign in as guest"}
+{"key":"authErrorUserNotFound","es":"No existe una cuenta con este correo","en":"No account exists with this email"}
+{"key":"authErrorWrongPassword","es":"Contraseña incorrecta","en":"Incorrect password"}
+{"key":"authErrorInvalidEmail","es":"Correo electrónico no válido","en":"Invalid email"}
+{"key":"authErrorUserDisabled","es":"Esta cuenta ha sido deshabilitada","en":"This account has been disabled"}
+{"key":"authErrorInvalidCredential","es":"Credenciales inválidas","en":"Invalid credentials"}
+{"key":"authErrorOperationNotAllowed","es":"Método de inicio de sesión no habilitado","en":"This sign-in method is not enabled"}
+{"key":"authErrorGeneric","es":"Error al iniciar sesión","en":"Sign-in error"}
+{"key":"resetErrorInvalidEmail","es":"Correo electrónico no válido","en":"Invalid email"}
+{"key":"resetErrorUserNotFound","es":"No hay cuenta con este correo. Comprueba el email o regístrate.","en":"No account with this email. Check the address or sign up."}
+{"key":"resetErrorUserDisabled","es":"Esta cuenta está deshabilitada","en":"This account is disabled"}
+{"key":"resetErrorOpNotAllowed","es":"Recuperación por correo no habilitada en Firebase (Authentication → Sign-in method → Email).","en":"Email recovery isn't enabled in Firebase (Authentication → Sign-in method → Email)."}
+{"key":"resetErrorGeneric","es":"No se pudo enviar el correo. Inténtalo más tarde.","en":"Could not send the email. Try again later."}
+{"key":"registerTitle","es":"Registro","en":"Sign up"}
+{"key":"registerHeadline","es":"Crea tu cuenta","en":"Create your account"}
+{"key":"registerSubtitle","es":"Introduce tus datos para registrarte","en":"Enter your details to sign up"}
+{"key":"registerEmailLabel","es":"Correo electrónico","en":"Email"}
+{"key":"registerPasswordLabel","es":"Contraseña","en":"Password"}
+{"key":"registerConfirmLabel","es":"Confirmar contraseña","en":"Confirm password"}
+{"key":"registerPasswordHint","es":"Mínimo 6 caracteres","en":"At least 6 characters"}
+{"key":"registerEmailHint","es":"tu@email.com","en":"you@email.com"}
+{"key":"registerValidatorEmailEmpty","es":"Introduce tu correo","en":"Enter your email"}
+{"key":"registerValidatorPasswordEmpty","es":"Introduce una contraseña","en":"Enter a password"}
+{"key":"registerValidatorPasswordShort","es":"Mínimo 6 caracteres","en":"At least 6 characters"}
+{"key":"registerValidatorConfirmEmpty","es":"Confirma tu contraseña","en":"Confirm your password"}
+{"key":"registerValidatorMismatch","es":"Las contraseñas no coinciden","en":"Passwords don't match"}
+{"key":"registerButton","es":"Registrarse","en":"Sign up"}
+{"key":"registerHaveAccount","es":"¿Ya tienes cuenta? ","en":"Already have an account? "}
+{"key":"registerSignInLink","es":"Inicia sesión","en":"Sign in"}
+{"key":"registerErrorGeneric","es":"Error al registrarse. Comprueba tu conexión y que el registro por email esté habilitado en Firebase.","en":"Sign-up failed. Check your connection and that email sign-up is enabled in Firebase."}
+{"key":"registerErrorEmailInUse","es":"Ya existe una cuenta con este correo. Usa \"Inicia sesión\" en su lugar.","en":"An account already exists with this email. Use “Sign in” instead."}
+{"key":"registerErrorWeakPassword","es":"La contraseña debe tener al menos 6 caracteres","en":"Password must be at least 6 characters"}
+{"key":"registerErrorOpNotAllowed","es":"Registro por email no habilitado. Actívalo en Firebase Console > Authentication > Sign-in method","en":"Email sign-up isn't enabled. Turn it on in Firebase Console → Authentication → Sign-in method"}
+{"key":"registerErrorNetwork","es":"Error de conexión. Comprueba tu internet.","en":"Network error. Check your internet."}
+{"key":"registerErrorTooMany","es":"Demasiados intentos. Espera unos minutos.","en":"Too many attempts. Wait a few minutes."}
+{"key":"registerErrorInvalidCredential","es":"Credenciales inválidas","en":"Invalid credentials"}
+{"key":"registerErrorUnknown","es":"Error: {code}. Revisa Firebase Console.","en":"Error: {code}. Check Firebase Console."}
+{"key":"onboardingWelcome","es":"Bienvenido a Mibebé","en":"Welcome to My Baby Diary"}
+{"key":"onboardingHowStart","es":"¿Cómo quieres empezar?","en":"How would you like to start?"}
+{"key":"onboardingCreateBabyTitle","es":"Crear bebé","en":"Create baby"}
+{"key":"onboardingCreateBabySubtitle","es":"Configura un nuevo perfil desde cero","en":"Set up a new profile from scratch"}
+{"key":"onboardingScanTitle","es":"Escanear bebé","en":"Scan baby"}
+{"key":"onboardingScanSubtitle","es":"Únete a un bebé ya creado escaneando su código QR","en":"Join an existing baby by scanning their QR code"}
+{"key":"onboardingScanDisabled","es":"Requiere Firebase para compartir","en":"Requires Firebase for sharing"}
+{"key":"onboardingExitLogin","es":"Salir y volver al inicio de sesión","en":"Exit and return to sign-in"}
+{"key":"onboardingConfigureTitle","es":"Configurar bebé","en":"Set up baby"}
+{"key":"onboardingCreateProfileTitle","es":"Crear perfil del bebé","en":"Create baby profile"}
+{"key":"onboardingCreateProfileSubtitle","es":"Configura los datos de tu bebé","en":"Enter your baby's details"}
+{"key":"onboardingBabyName","es":"Nombre del bebé","en":"Baby's name"}
+{"key":"onboardingBabyNameHint","es":"Ej: María, Lucas...","en":"e.g. Maria, Lucas..."}
+{"key":"onboardingNameRequired","es":"El nombre es obligatorio","en":"Name is required"}
+{"key":"onboardingGender","es":"Género","en":"Gender"}
+{"key":"onboardingBirthDate","es":"Fecha de nacimiento","en":"Date of birth"}
+{"key":"onboardingBirthNote","es":"Se usa para calcular percentiles OMS (0-12 meses)","en":"Used for WHO percentiles (0–12 months)"}
+{"key":"onboardingHeightTitle","es":"Talla / altura","en":"Length / height"}
+{"key":"onboardingHeightSubtitle","es":"Opcional. La altura actual en centímetros (aparece en el perfil).","en":"Optional. Current height in centimeters (shown on the profile)."}
+{"key":"onboardingHeightHint","es":"Dejar vacío si no la conoces","en":"Leave blank if unknown"}
+{"key":"onboardingHeightInvalid","es":"Introduce un número válido (ej: 52,5)","en":"Enter a valid number (e.g. 52.5)"}
+{"key":"onboardingHeightRange","es":"Altura habitual entre 25 y 130 cm","en":"Height is usually between 25 and 130 cm"}
+{"key":"onboardingNext","es":"Siguiente","en":"Next"}
+{"key":"onboardingStart","es":"Comenzar","en":"Get started"}
+{"key":"onboardingEnterName","es":"Introduce el nombre del bebé","en":"Enter the baby's name"}
+{"key":"onboardingHeightReview","es":"Revisa la talla: número entre 25 y 130 cm, o deja el campo vacío","en":"Check height: a number between 25 and 130 cm, or leave the field empty"}
+{"key":"onboardingSaveDenied","es":"Sin permiso en Firebase (reglas o sesión). Revisa Firestore.","en":"No permission in Firebase (rules or session). Check Firestore."}
+{"key":"onboardingSaveFailed","es":"No se pudo guardar ({code}). Revisa conexión y Firebase.","en":"Could not save ({code}). Check connection and Firebase."}
+{"key":"onboardingSaveError","es":"No se pudo guardar: {error}","en":"Could not save: {error}"}
+{"key":"onboardingExitTitle","es":"¿Salir?","en":"Leave?"}
+{"key":"onboardingExitBody","es":"Cerrarás sesión y volverás a la pantalla de inicio de sesión.","en":"You will sign out and return to the sign-in screen."}
+{"key":"onboardingSignOutError","es":"No se pudo cerrar sesión: {error}","en":"Could not sign out: {error}"}
+{"key":"familyQrTitle","es":"Escanear código QR","en":"Scan QR code"}
+{"key":"familyQrHint","es":"Apunta la cámara al código QR del bebé","en":"Point the camera at the baby's QR code"}
+{"key":"familyQrDetailLabel","es":"Detalle:","en":"Detail:"}
+{"key":"familyQrJoinFailPermission","es":"Permiso denegado en Firebase (reglas de Firestore o sesión).","en":"Permission denied in Firebase (Firestore rules or session)."}
+{"key":"familyQrJoinFailUnavailable","es":"Firebase no está disponible. Revisa la conexión a internet.","en":"Firebase is unavailable. Check your internet connection."}
+{"key":"familyQrJoinFailNotFound","es":"Recurso no encontrado en Firebase.","en":"Resource not found in Firebase."}
+{"key":"familyQrJoinFailFirebase","es":"Error de Firebase ({code}).","en":"Firebase error ({code})."}
+{"key":"familyQrJoinFailFamily","es":"Familia no encontrada. Comprueba que el QR sea correcto.","en":"Family not found. Check that the QR is correct."}
+{"key":"familyQrJoinFailState","es":"Error al procesar el código del QR.","en":"Could not process the QR code."}
+{"key":"familyQrJoinFailUnsupported","es":"Unirse por QR no está disponible (hace falta Firebase en este dispositivo).","en":"QR join isn't available (Firebase is required on this device)."}
+{"key":"familyQrJoinFailGeneric","es":"No se pudo unir a la familia.","en":"Could not join the family."}
+{"key":"familyQrDecodeFail","es":"Fallo al leer o decodificar el código.","en":"Failed to read or decode the code."}
+{"key":"familyQrInternalCode","es":"Código interno:","en":"Internal code:"}
+{"key":"notificationChannelName","es":"Próximas tomas","en":"Next feeds"}
+{"key":"notificationChannelDescription","es":"Aviso cuando llega la hora sugerida de toma","en":"Reminder when the next feed is due"}
+{"key":"notificationNextFeedTitle","es":"Próxima toma","en":"Next feed"}
+{"key":"notificationNextFeedBody","es":"Podría tocar otra toma para {name}.","en":"It may be time for another feed for {name}."}
+{"key":"formatWeightMetricKg","es":"{kg} kg","en":"{kg} kg"}
+{"key":"formatWeightLbOz","es":"{lb} lb {oz} oz","en":"{lb} lb {oz} oz"}
+{"key":"formatVolumeMlOnly","es":"{ml} ml","en":"{ml} ml"}
+{"key":"formatVolumeFlOzOnly","es":"{flOz} fl oz","en":"{flOz} fl oz"}
+{"key":"unitMlShort","es":"ml","en":"ml"}
+{"key":"hintExampleWeightLb","es":"Ej: 9,5","en":"e.g. 9.5"}
+{"key":"hintExampleFlOz","es":"Ej: 4","en":"e.g. 4"}
+{"key":"liquidFieldLabelFlOz","es":"Cantidad (fl oz)","en":"Amount (US fl oz)"}
+{"key":"settingsUnitsTitle","es":"Unidades","en":"Units"}
+{"key":"settingsUnitsIntro","es":"Elige cómo ver e introducir peso y biberón. Los datos se guardan siempre en kg y ml.","en":"Choose how you enter and view weight and bottle amounts. Data is always stored in kg and ml."}
+{"key":"settingsUnitsWeight","es":"Peso","en":"Weight"}
+{"key":"settingsUnitsLiquid","es":"Líquidos","en":"Liquids"}
+{"key":"unitSegmentKg","es":"kg","en":"kg"}
+{"key":"unitSegmentLbOz","es":"lb · oz","en":"lb · oz"}
+{"key":"unitSegmentMl","es":"mL","en":"mL"}
+{"key":"unitSegmentFlOz","es":"fl oz","en":"fl oz"}

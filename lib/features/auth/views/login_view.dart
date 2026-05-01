@@ -1,3 +1,4 @@
+import 'package:control_bebe/l10n/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,13 +67,17 @@ class _LoginViewState extends ConsumerState<LoginView> {
       );
       if (mounted) _navigateToApp();
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _errorMessage = _mapAuthError(e.code);
+        _errorMessage = _mapAuthError(e.code, l10n);
         _isLoading = false;
       });
     } catch (_) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _errorMessage = 'Error al iniciar sesión';
+        _errorMessage = l10n.loginErrorGeneric;
         _isLoading = false;
       });
     }
@@ -91,13 +96,17 @@ class _LoginViewState extends ConsumerState<LoginView> {
         setState(() => _isLoading = false);
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _errorMessage = _mapAuthError(e.code);
+        _errorMessage = _mapAuthError(e.code, l10n);
         _isLoading = false;
       });
     } catch (_) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _errorMessage = 'Error al iniciar sesión con Google';
+        _errorMessage = l10n.loginErrorGoogle;
         _isLoading = false;
       });
     }
@@ -105,8 +114,10 @@ class _LoginViewState extends ConsumerState<LoginView> {
 
   Future<void> _signInAsGuestForQr() async {
     if (!FirebaseService.isAvailable) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _errorMessage = 'Hace falta Firebase para unirte con código QR';
+        _errorMessage = l10n.loginGuestNeedsFirebase;
       });
       return;
     }
@@ -118,19 +129,20 @@ class _LoginViewState extends ConsumerState<LoginView> {
       await AuthService.signInAnonymously();
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
         _guestQrLoading = false;
         _errorMessage = switch (e.code) {
-          'operation-not-allowed' =>
-            'Invitado no disponible. En Firebase Console → Authentication → Sign-in method, activa "Anónimo".',
-          _ => 'No se pudo entrar como invitado: ${e.message ?? e.code}',
+          'operation-not-allowed' => l10n.loginGuestNotAllowed,
+          _ => l10n.loginGuestFailed,
         };
       });
     } catch (_) {
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
         _guestQrLoading = false;
-        _errorMessage = 'No se pudo entrar como invitado';
+        _errorMessage = l10n.loginGuestFailed;
       });
     }
   }
@@ -148,13 +160,17 @@ class _LoginViewState extends ConsumerState<LoginView> {
         setState(() => _isLoading = false);
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _errorMessage = _mapAuthError(e.code);
+        _errorMessage = _mapAuthError(e.code, l10n);
         _isLoading = false;
       });
     } catch (_) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _errorMessage = 'Error al iniciar sesión con Apple';
+        _errorMessage = l10n.loginErrorApple;
         _isLoading = false;
       });
     }
@@ -166,27 +182,25 @@ class _LoginViewState extends ConsumerState<LoginView> {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  String _mapAuthError(String code) {
+  String _mapAuthError(String code, AppLocalizations l10n) {
     return switch (code) {
-      'user-not-found' => 'No existe una cuenta con este correo',
-      'wrong-password' => 'Contraseña incorrecta',
-      'invalid-email' => 'Correo electrónico no válido',
-      'user-disabled' => 'Esta cuenta ha sido deshabilitada',
-      'invalid-credential' => 'Credenciales inválidas',
-      'operation-not-allowed' => 'Método de inicio de sesión no habilitado',
-      _ => 'Error al iniciar sesión',
+      'user-not-found' => l10n.authErrorUserNotFound,
+      'wrong-password' => l10n.authErrorWrongPassword,
+      'invalid-email' => l10n.authErrorInvalidEmail,
+      'user-disabled' => l10n.authErrorUserDisabled,
+      'invalid-credential' => l10n.authErrorInvalidCredential,
+      'operation-not-allowed' => l10n.authErrorOperationNotAllowed,
+      _ => l10n.loginErrorGeneric,
     };
   }
 
-  String _mapPasswordResetError(String code) {
+  String _mapPasswordResetError(String code, AppLocalizations l10n) {
     return switch (code) {
-      'invalid-email' => 'Correo electrónico no válido',
-      'user-not-found' =>
-        'No hay cuenta con este correo. Comprueba el email o regístrate.',
-      'user-disabled' => 'Esta cuenta está deshabilitada',
-      'operation-not-allowed' =>
-        'Recuperación por correo no habilitada en Firebase (Authentication → Sign-in method → Email).',
-      _ => 'No se pudo enviar el correo. Inténtalo más tarde.',
+      'invalid-email' => l10n.resetErrorInvalidEmail,
+      'user-not-found' => l10n.resetErrorUserNotFound,
+      'user-disabled' => l10n.resetErrorUserDisabled,
+      'operation-not-allowed' => l10n.resetErrorOpNotAllowed,
+      _ => l10n.resetErrorGeneric,
     };
   }
 
@@ -200,20 +214,21 @@ class _LoginViewState extends ConsumerState<LoginView> {
     await showDialog<void>(
       context: context,
       builder: (dialogCtx) {
+        final l10n = AppLocalizations.of(dialogCtx)!;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppTheme.dialogRadius),
               ),
-              title: const Text('Recuperar contraseña'),
+              title: Text(l10n.loginForgotPasswordTitle),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Te enviaremos un enlace para elegir una contraseña nueva.',
+                      l10n.loginForgotPasswordBody,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textLight,
                       ),
@@ -223,8 +238,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
                       controller: emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
-                      decoration: const InputDecoration(
-                        hintText: 'Tu correo electrónico',
+                      decoration: InputDecoration(
+                        hintText: l10n.loginEmailHint,
                       ),
                     ),
                     if (dialogError != null) ...[
@@ -245,7 +260,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                   onPressed: sending
                       ? null
                       : () => Navigator.of(dialogCtx).pop(),
-                  child: const Text('Cancelar'),
+                  child: Text(l10n.commonCancel),
                 ),
                 FilledButton(
                   onPressed: sending
@@ -254,7 +269,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                           final email = emailCtrl.text.trim();
                           if (email.isEmpty || !email.contains('@')) {
                             setDialogState(() {
-                              dialogError = 'Introduce un correo válido';
+                              dialogError = l10n.loginResetInvalidEmail;
                             });
                             return;
                           }
@@ -267,23 +282,24 @@ class _LoginViewState extends ConsumerState<LoginView> {
                             if (!dialogCtx.mounted) return;
                             Navigator.of(dialogCtx).pop();
                             if (!mounted) return;
+                            final rootL10n = AppLocalizations.of(context)!;
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Revisa tu correo (y spam) para restablecer la contraseña',
-                                ),
+                              SnackBar(
+                                content: Text(rootL10n.loginResetCheckEmail),
                               ),
                             );
                           } on FirebaseAuthException catch (e) {
                             setDialogState(() {
                               sending = false;
-                              dialogError = _mapPasswordResetError(e.code);
+                              dialogError = _mapPasswordResetError(
+                                e.code,
+                                l10n,
+                              );
                             });
                           } catch (_) {
                             setDialogState(() {
                               sending = false;
-                              dialogError =
-                                  'No se pudo enviar el correo. Inténtalo más tarde.';
+                              dialogError = l10n.loginResetSendFail;
                             });
                           }
                         },
@@ -296,7 +312,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Enviar'),
+                      : Text(l10n.commonSend),
                 ),
               ],
             );
@@ -333,9 +349,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 16),
-                  _buildHeader(),
+                  _buildHeader(context),
                   const SizedBox(height: 40),
-                  _buildCard(),
+                  _buildCard(context),
                 ],
               ),
             ),
@@ -345,7 +361,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         Container(
@@ -367,7 +384,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
         ),
         const SizedBox(height: 8),
         Text(
-          'MiBebé Diario',
+          l10n.loginHeaderTitle,
           style: GoogleFonts.nunito(
             fontSize: 26,
             fontWeight: FontWeight.w800,
@@ -380,7 +397,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
     );
   }
 
-  Widget _buildCard() {
+  Widget _buildCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
@@ -409,13 +427,13 @@ class _LoginViewState extends ConsumerState<LoginView> {
                   Icons.email_outlined,
                   color: AppTheme.textLight,
                 ),
-                hintText: _emailFocusNode.hasFocus
-                    ? null
-                    : 'Tu correo electrónico',
+                hintText: _emailFocusNode.hasFocus ? null : l10n.loginEmailHint,
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Introduce tu correo';
-                if (!v.contains('@')) return 'Correo no válido';
+                if (v == null || v.trim().isEmpty) {
+                  return l10n.loginValidatorEmailEmpty;
+                }
+                if (!v.contains('@')) return l10n.loginValidatorEmailInvalid;
                 return null;
               },
             ),
@@ -430,7 +448,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
                   Icons.lock_outlined,
                   color: AppTheme.textLight,
                 ),
-                hintText: _passwordFocusNode.hasFocus ? null : 'Tu contraseña',
+                hintText: _passwordFocusNode.hasFocus
+                    ? null
+                    : l10n.loginPasswordHint,
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -441,7 +461,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
                 ),
               ),
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Introduce tu contraseña';
+                if (v == null || v.isEmpty) {
+                  return l10n.loginValidatorPasswordEmpty;
+                }
                 return null;
               },
             ),
@@ -459,7 +481,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
-                  '¿Has olvidado tu contraseña?',
+                  l10n.loginForgotLink,
                   style: TextStyle(
                     color: AppTheme.primaryBlue,
                     fontWeight: FontWeight.w600,
@@ -505,9 +527,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text(
-                        'Iniciar Sesión',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                    : Text(
+                        l10n.loginSignIn,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
               ),
             ),
@@ -528,7 +550,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                       )
                     : Icon(Icons.qr_code_scanner, color: AppTheme.primaryBlue),
                 label: Text(
-                  'Unirme con código QR (sin cuenta)',
+                  l10n.loginGuestQr,
                   style: TextStyle(
                     color: AppTheme.primaryBlue,
                     fontWeight: FontWeight.w600,
@@ -562,7 +584,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
-                    'O INICIA SESIÓN CON',
+                    l10n.loginOrWith,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade600,
@@ -634,16 +656,16 @@ class _LoginViewState extends ConsumerState<LoginView> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  '¿No tienes cuenta? ',
+                  l10n.loginNoAccount,
                   style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
                 ),
                 GestureDetector(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const RegisterView()),
                   ),
-                  child: const Text(
-                    'Regístrate',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.loginRegisterLink,
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
                       fontSize: 14,

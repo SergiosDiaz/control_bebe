@@ -20,20 +20,20 @@ class AppTheme {
   /// Navegación inferior: fondo de la píldora al seleccionar (tonalidades de la paleta).
   static const Color navHomeSelectedFill = softPrimaryFill;
 
-  /// Crema [#FBF8CC] y familia (antes el menta iba a peso).
-  static const Color navDiapersSelectedFill = Color(0xFFFBF8CC);
+  /// Misma píldora que home para todos los tabs.
+  static const Color navDiapersSelectedFill = softPrimaryFill;
 
-  /// Familia del melocotón [#FFD1BA] / [paletteTertiary].
-  static const Color navFeedingSelectedFill = Color(0xFFFFE8D9);
+  /// Misma píldora que home para todos los tabs.
+  static const Color navFeedingSelectedFill = softPrimaryFill;
 
-  /// Familia del menta claro (mismos tonos que tenía pañales).
-  static const Color navWeightSelectedFill = Color(0xFFD4F5E6);
+  /// Misma píldora que home para todos los tabs.
+  static const Color navWeightSelectedFill = softPrimaryFill;
 
-  /// Icono y texto de la pestaña activa (contraste sobre cada fondo).
+  /// Icono y texto de la pestaña activa (mismo azul que home).
   static const Color navHomeSelectedFg = palettePrimary;
-  static const Color navDiapersSelectedFg = Color(0xFF5C5418);
-  static const Color navFeedingSelectedFg = Color(0xFF6D4C41);
-  static const Color navWeightSelectedFg = Color(0xFF1B5E45);
+  static const Color navDiapersSelectedFg = palettePrimary;
+  static const Color navFeedingSelectedFg = palettePrimary;
+  static const Color navWeightSelectedFg = palettePrimary;
 
   /// Icono junto al título en cada sección (punto medio entre fill y fg de la píldora).
   static final Color pageTitleIconDiapers = Color.lerp(
@@ -85,6 +85,9 @@ class AppTheme {
   static const Color feedingHistoryRightAccent = Color(0xFF2A9485);
   static const Color feedingHistoryBottleAccent = Color(0xFF8B6A55);
 
+  /// Alimento sólido en historial.
+  static const Color feedingHistorySolidAccent = Color(0xFFC27C3A);
+
   /// Historial de pañales: mojado / sucio / ambos (tonos cercanos, fáciles de distinguir).
   static const Color diaperHistoryWetAccent = Color(0xFF4589B3);
   static const Color diaperHistoryDirtyAccent = Color(0xFF8B6A55);
@@ -94,7 +97,25 @@ class AppTheme {
   static Color get weightHistoryAccent => navWeightSelectedFg;
 
   /// Layout compartido: fichas de historial en alimentación, pañales y peso.
-  static const double historyRecordStripeWidth = 4;
+  /// Franja más ancha con degradado a transparente hacia el contenido.
+  static const double historyRecordStripeWidth = 22;
+
+  /// Intensidad máxima del borde izquierdo del degradado (el resto funde a transparente).
+  static const double historyRecordStripePeakOpacity = 0.28;
+
+  static BoxDecoration historyRecordStripeDecoration(Color accent) {
+    final soft = accent.withValues(alpha: historyRecordStripePeakOpacity);
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [
+          soft,
+          soft.withValues(alpha: 0),
+        ],
+      ),
+    );
+  }
   static const double historyRecordAvatarRadius = 22;
   static const EdgeInsets historyRecordLeadingPadding = EdgeInsets.symmetric(
     horizontal: 10,

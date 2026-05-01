@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.2+21
+version: 1.0.4+5
 
 environment:
   sdk: '>=3.11.0 <4.0.0'
@@ -36,9 +36,6 @@ dependencies:
 
   # State management
   flutter_riverpod: ^2.6.1
-
-  # Database (shared_preferences para Web)
-  shared_preferences: ^2.3.3
 
   # Gráficos
   fl_chart: ^0.69.0
@@ -69,6 +66,13 @@ dependencies:
   timezone: ^0.10.0
   flutter_timezone: ^4.1.0
   confetti: ^0.8.0
+  shared_preferences: ^2.3.5
+  in_app_review: ^2.0.11
+
+dependency_overrides:
+  # Parche: ContentState con revisión monotónica para que ActivityKit refresque la Isla (pub 2.4.7 solo enviaba appGroupId).
+  live_activities:
+    path: packages/live_activities
 
 dev_dependencies:
   flutter_test:
@@ -88,6 +92,7 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
@@ -98,8 +103,6 @@ flutter:
     - assets/images/app_icon.png
     - assets/images/icon_mibebe.png
     - assets/images/google_logo.svg
-    - shorebird.yaml
-
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
@@ -134,8 +137,6 @@ flutter_launcher_icons:
   ios: true
   remove_alpha_ios: true
   background_color_ios: "#F8F9FA"
-  web:
-    generate: true
   image_path: "assets/images/icon_launcher.png"
   adaptive_icon_background: "#F8F9FA"
   adaptive_icon_foreground: "assets/images/icon_launcher.png"

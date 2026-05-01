@@ -1,3 +1,4 @@
+import 'package:control_bebe/l10n/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,37 +47,39 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _errorMessage = _mapAuthError(e.code);
+        _errorMessage = _mapAuthError(e.code, l10n);
         _isLoading = false;
       });
     } catch (e, st) {
       debugPrint('Error registro: $e\n$st');
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _errorMessage =
-            'Error al registrarse. Comprueba tu conexión y que el registro por email esté habilitado en Firebase.';
+        _errorMessage = l10n.registerErrorGeneric;
         _isLoading = false;
       });
     }
   }
 
-  String _mapAuthError(String code) {
+  String _mapAuthError(String code, AppLocalizations l10n) {
     return switch (code) {
-      'email-already-in-use' =>
-        'Ya existe una cuenta con este correo. Usa "Inicia sesión" en su lugar.',
-      'invalid-email' => 'Correo electrónico no válido',
-      'weak-password' => 'La contraseña debe tener al menos 6 caracteres',
-      'operation-not-allowed' =>
-        'Registro por email no habilitado. Actívalo en Firebase Console > Authentication > Sign-in method',
-      'network-request-failed' => 'Error de conexión. Comprueba tu internet.',
-      'too-many-requests' => 'Demasiados intentos. Espera unos minutos.',
-      'invalid-credential' => 'Credenciales inválidas',
-      _ => 'Error: $code. Revisa Firebase Console.',
+      'email-already-in-use' => l10n.registerErrorEmailInUse,
+      'invalid-email' => l10n.authErrorInvalidEmail,
+      'weak-password' => l10n.registerErrorWeakPassword,
+      'operation-not-allowed' => l10n.registerErrorOpNotAllowed,
+      'network-request-failed' => l10n.registerErrorNetwork,
+      'too-many-requests' => l10n.registerErrorTooMany,
+      'invalid-credential' => l10n.registerErrorInvalidCredential,
+      _ => l10n.registerErrorUnknown(code),
     };
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final errColor = Theme.of(context).colorScheme.error;
     return Scaffold(
       appBar: AppBar(
@@ -84,7 +87,7 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Registro'),
+        title: Text(l10n.registerTitle),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -130,7 +133,9 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
                     color: AppTheme.cardBackground,
-                    borderRadius: BorderRadius.circular(AppTheme.homeCardRadius),
+                    borderRadius: BorderRadius.circular(
+                      AppTheme.homeCardRadius,
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.06),
@@ -145,7 +150,7 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'Crea tu cuenta',
+                          l10n.registerHeadline,
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -154,31 +159,34 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Introduce tus datos para registrarte',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppTheme.textLight,
-                              ),
+                          l10n.registerSubtitle,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppTheme.textLight),
                         ),
                         const SizedBox(height: 28),
                         _buildTextField(
-                          label: 'Correo electrónico',
+                          context: context,
+                          label: l10n.registerEmailLabel,
                           controller: _emailController,
-                          hint: 'tu@email.com',
+                          hint: l10n.registerEmailHint,
                           prefixIcon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) {
-                              return 'Introduce tu correo';
+                              return l10n.registerValidatorEmailEmpty;
                             }
-                            if (!v.contains('@')) return 'Correo no válido';
+                            if (!v.contains('@')) {
+                              return l10n.loginValidatorEmailInvalid;
+                            }
                             return null;
                           },
                         ),
                         const SizedBox(height: 20),
                         _buildTextField(
-                          label: 'Contraseña',
+                          context: context,
+                          label: l10n.registerPasswordLabel,
                           controller: _passwordController,
-                          hint: 'Mínimo 6 caracteres',
+                          hint: l10n.registerPasswordHint,
                           prefixIcon: Icons.lock_outlined,
                           obscureText: _obscurePassword,
                           suffixIcon: IconButton(
@@ -194,17 +202,20 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                           ),
                           validator: (v) {
                             if (v == null || v.isEmpty) {
-                              return 'Introduce una contraseña';
+                              return l10n.registerValidatorPasswordEmpty;
                             }
-                            if (v.length < 6) return 'Mínimo 6 caracteres';
+                            if (v.length < 6) {
+                              return l10n.registerValidatorPasswordShort;
+                            }
                             return null;
                           },
                         ),
                         const SizedBox(height: 20),
                         _buildTextField(
-                          label: 'Confirmar contraseña',
+                          context: context,
+                          label: l10n.registerConfirmLabel,
                           controller: _confirmPasswordController,
-                          hint: 'Repite la contraseña',
+                          hint: l10n.registerValidatorConfirmEmpty,
                           prefixIcon: Icons.lock_outlined,
                           obscureText: _obscureConfirm,
                           suffixIcon: IconButton(
@@ -219,8 +230,11 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                             ),
                           ),
                           validator: (v) {
+                            if (v == null || v.isEmpty) {
+                              return l10n.registerValidatorConfirmEmpty;
+                            }
                             if (v != _passwordController.text) {
-                              return 'Las contraseñas no coinciden';
+                              return l10n.registerValidatorMismatch;
                             }
                             return null;
                           },
@@ -229,8 +243,9 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                           const SizedBox(height: 12),
                           Text(
                             _errorMessage!,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: errColor),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(color: errColor),
                           ),
                         ],
                         const SizedBox(height: 28),
@@ -247,9 +262,11 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text(
-                                    'Registrarse',
-                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                : Text(
+                                    l10n.registerButton,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                           ),
                         ),
@@ -258,14 +275,14 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              '¿Ya tienes cuenta? ',
+                              l10n.registerHaveAccount,
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(color: AppTheme.textLight),
                             ),
                             GestureDetector(
                               onTap: () => Navigator.of(context).pop(),
                               child: Text(
-                                'Inicia sesión',
+                                l10n.registerSignInLink,
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(
                                       fontWeight: FontWeight.w700,
@@ -289,6 +306,7 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
   }
 
   Widget _buildTextField({
+    required BuildContext context,
     required String label,
     required TextEditingController controller,
     required String hint,
@@ -304,9 +322,9 @@ class _RegisterViewState extends ConsumerState<RegisterView> {
         Text(
           label,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textDark,
-              ),
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textDark,
+          ),
         ),
         const SizedBox(height: 8),
         TextFormField(

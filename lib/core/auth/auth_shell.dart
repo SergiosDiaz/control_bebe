@@ -63,8 +63,10 @@ class _AnonymousGuestGateState extends State<_AnonymousGuestGate> {
   Future<bool> _userHasFamilyId() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return false;
-    final doc =
-        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
     final id = doc.data()?['familyId'] as String?;
     return id != null && id.isNotEmpty;
   }
@@ -92,7 +94,6 @@ class _AnonymousGuestGateState extends State<_AnonymousGuestGate> {
         }
         return FamilyQrJoinScreen(
           key: const ValueKey<String>('anonymous_guest_qr'),
-          hintText: 'Escanea el QR que te comparte la familia',
           onScanned: _onQrScanned,
           onBack: () => AuthService.signOut(),
         );
@@ -121,7 +122,8 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
   Future<void> _checkInitialRoute() async {
     final needsOnboarding = await IsarService.needsOnboarding();
     if (mounted) {
-      // Forzar recarga de todos los streams para que lean con la sesión actual.
+      // Forzar recarga de streams y ventana de 3 días con la sesión actual.
+      resetRecordHistoryFirestoreDays(ref);
       ref.invalidate(weightRecordsStreamProvider);
       ref.invalidate(diaperRecordsStreamProvider);
       ref.invalidate(feedingRecordsStreamProvider);

@@ -1,3 +1,4 @@
+import 'package:control_bebe/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 /// Cuando falla la carga de registros desde Firestore; [onRetry] invalida el provider.
@@ -13,6 +14,7 @@ class StreamRecordLoadError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final err = Theme.of(context).colorScheme.error;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -27,7 +29,7 @@ class StreamRecordLoadError extends StatelessWidget {
           TextButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
-            label: const Text('Reintentar'),
+            label: Text(l10n.commonRetry),
           ),
         ],
       ),

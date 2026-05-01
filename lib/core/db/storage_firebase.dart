@@ -16,6 +16,9 @@ import 'storage_interface.dart';
 class StorageServiceFirebase implements StorageService {
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
+  /// Evita repetir `users/{uid}.get()` en cada operación de la sesión.
+  String? _memoryFamilyId;
+
   String get _uid {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw StateError('Usuario no autenticado');
@@ -27,9 +30,17 @@ class StorageServiceFirebase implements StorageService {
 
   /// Obtiene el familyId del usuario sin crear. Null si no tiene.
   Future<String?> _getFamilyIdOnly() async {
+    final cached = _memoryFamilyId;
+    if (cached != null && cached.isNotEmpty) {
+      return cached;
+    }
     final userDoc = await _userDoc.get();
     final familyId = userDoc.data()?['familyId'] as String?;
-    return (familyId != null && familyId.isNotEmpty) ? familyId : null;
+    final out = (familyId != null && familyId.isNotEmpty) ? familyId : null;
+    if (out != null) {
+      _memoryFamilyId = out;
+    }
+    return out;
   }
 
   /// Obtiene el familyId del usuario. Crea familia y user doc si no existen.
@@ -52,12 +63,12 @@ class StorageServiceFirebase implements StorageService {
         'members': <String>[_uid],
         'app_settings': {
           'onboardingCompleted': false,
-          'homeCardOrder': ['weight', 'feeding', 'diapers'],
         },
       });
       tx.set(_userDoc, {'familyId': familyId}, SetOptions(merge: true));
     });
 
+    _memoryFamilyId = familyId;
     return familyId;
   }
 
@@ -110,9 +121,6 @@ class StorageServiceFirebase implements StorageService {
     final data = doc.data() ?? {};
     final settings = Map<String, dynamic>.from(data['app_settings'] as Map? ?? {});
     settings['onboardingCompleted'] = true;
-    if (settings['homeCardOrder'] == null) {
-      settings['homeCardOrder'] = ['weight', 'feeding', 'diapers'];
-    }
     await _familyDoc(familyId).update({'app_settings': settings});
   }
 
@@ -184,12 +192,38 @@ class StorageServiceFirebase implements StorageService {
   }
 
   @override
-  Stream<List<WeightRecord>> watchWeightRecords() {
+  Stream<List<WeightRecord>> watchWeightRecordsSince(DateTime fromInclusive) {
+    final fromIso = fromInclusive.toIso8601String();
+    return _resilientFamilyListStream(() => Stream.fromFuture(_getOrCreateFamilyId())
+        .asyncExpand((familyId) => _weights(familyId)
+            .where('dateTime', isGreaterThanOrEqualTo: fromIso)
+            .orderBy('dateTime', descending: true)
+            .snapshots()
+            .map((s) => s.docs.map(_weightFromDoc).toList())));
+  }
+
+  @override
+  Stream<List<WeightRecord>> watchAllWeightRecords() {
     return _resilientFamilyListStream(() => Stream.fromFuture(_getOrCreateFamilyId())
         .asyncExpand((familyId) => _weights(familyId)
             .orderBy('dateTime', descending: true)
             .snapshots()
             .map((s) => s.docs.map(_weightFromDoc).toList())));
+  }
+
+  @override
+  Future<bool> hasWeightRecordStrictlyBefore(DateTime exclusiveUpper) async {
+    try {
+      final familyId = await _getOrCreateFamilyId();
+      final snap = await _weights(familyId)
+          .where('dateTime', isLessThan: exclusiveUpper.toIso8601String())
+          .orderBy('dateTime', descending: true)
+          .limit(1)
+          .get();
+      return snap.docs.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -232,16 +266,34 @@ class StorageServiceFirebase implements StorageService {
       id: (m['id'] as num?)?.toInt(),
       weightKg: (m['weightKg'] as num).toDouble(),
       dateTime: DateTime.parse(m['dateTime'] as String),
+      pendingRemoteSync: false,
     );
   }
 
   @override
-  Stream<List<DiaperRecord>> watchDiaperRecords() {
+  Stream<List<DiaperRecord>> watchDiaperRecordsSince(DateTime fromInclusive) {
+    final fromIso = fromInclusive.toIso8601String();
     return _resilientFamilyListStream(() => Stream.fromFuture(_getOrCreateFamilyId())
         .asyncExpand((familyId) => _diapers(familyId)
+            .where('dateTime', isGreaterThanOrEqualTo: fromIso)
             .orderBy('dateTime', descending: true)
             .snapshots()
             .map((s) => s.docs.map(_diaperFromDoc).toList())));
+  }
+
+  @override
+  Future<bool> hasDiaperRecordStrictlyBefore(DateTime exclusiveUpper) async {
+    try {
+      final familyId = await _getOrCreateFamilyId();
+      final snap = await _diapers(familyId)
+          .where('dateTime', isLessThan: exclusiveUpper.toIso8601String())
+          .orderBy('dateTime', descending: true)
+          .limit(1)
+          .get();
+      return snap.docs.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -308,16 +360,34 @@ class StorageServiceFirebase implements StorageService {
       id: (m['id'] as num?)?.toInt(),
       type: DiaperType.values[(m['type'] as num).toInt()],
       dateTime: DateTime.parse(m['dateTime'] as String),
+      pendingRemoteSync: false,
     );
   }
 
   @override
-  Stream<List<FeedingRecord>> watchFeedingRecords() {
+  Stream<List<FeedingRecord>> watchFeedingRecordsSince(DateTime fromInclusive) {
+    final fromIso = fromInclusive.toIso8601String();
     return _resilientFamilyListStream(() => Stream.fromFuture(_getOrCreateFamilyId())
         .asyncExpand((familyId) => _feedings(familyId)
+            .where('dateTime', isGreaterThanOrEqualTo: fromIso)
             .orderBy('dateTime', descending: true)
             .snapshots()
             .map((s) => s.docs.map(_feedingFromDoc).toList())));
+  }
+
+  @override
+  Future<bool> hasFeedingRecordStrictlyBefore(DateTime exclusiveUpper) async {
+    try {
+      final familyId = await _getOrCreateFamilyId();
+      final snap = await _feedings(familyId)
+          .where('dateTime', isLessThan: exclusiveUpper.toIso8601String())
+          .orderBy('dateTime', descending: true)
+          .limit(1)
+          .get();
+      return snap.docs.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -350,6 +420,9 @@ class StorageServiceFirebase implements StorageService {
       'dateTime': record.dateTime.toIso8601String(),
       'durationSeconds': record.durationSeconds,
       'amountMl': record.amountMl,
+      'solidName': record.solidName,
+      'solidQuantity': record.solidQuantity,
+      'solidUnit': record.solidUnit?.index,
     });
   }
 
@@ -362,6 +435,9 @@ class StorageServiceFirebase implements StorageService {
       'dateTime': record.dateTime.toIso8601String(),
       'durationSeconds': record.durationSeconds,
       'amountMl': record.amountMl,
+      'solidName': record.solidName,
+      'solidQuantity': record.solidQuantity,
+      'solidUnit': record.solidUnit?.index,
     });
   }
 
@@ -373,64 +449,39 @@ class StorageServiceFirebase implements StorageService {
 
   FeedingRecord _feedingFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> d) {
     final m = d.data();
+    final typeIdx = (m['type'] as num?)?.toInt() ?? 0;
+    final type = typeIdx >= 0 && typeIdx < FeedingType.values.length
+        ? FeedingType.values[typeIdx]
+        : FeedingType.bottle;
+    final suRaw = (m['solidUnit'] as num?)?.toInt();
+    SolidQuantityUnit? solidUnit;
+    if (suRaw != null &&
+        suRaw >= 0 &&
+        suRaw < SolidQuantityUnit.values.length) {
+      solidUnit = SolidQuantityUnit.values[suRaw];
+    }
     return FeedingRecord(
       id: (m['id'] as num?)?.toInt(),
-      type: FeedingType.values[(m['type'] as num).toInt()],
+      type: type,
       dateTime: DateTime.parse(m['dateTime'] as String),
       durationSeconds: (m['durationSeconds'] as num?)?.toInt(),
       amountMl: (m['amountMl'] as num?)?.toInt(),
+      solidName: m['solidName'] as String?,
+      solidQuantity: (m['solidQuantity'] as num?)?.toDouble(),
+      solidUnit: solidUnit,
+      pendingRemoteSync: false,
     );
   }
 
-  /// Cronómetro guardado en users/{uid} (solo lo ve quien lo inició).
-  /// El registro se guarda en la familia al parar.
+  /// El cronómetro activo vive solo en local ([QueuedStorageService]); aquí no hay I/O.
   @override
-  Future<LactationTimer?> getActiveLactationTimer() async {
-    final doc = await _userDoc.get();
-    final data = doc.data()?['lactation_timer'] as Map<String, dynamic>?;
-    if (data == null) return null;
-    return LactationTimer(
-      id: (data['id'] as num?)?.toInt(),
-      side: LactationSide.values[(data['side'] as num).toInt()],
-      startedAt: DateTime.parse(data['startedAt'] as String),
-    );
-  }
+  Future<LactationTimer?> getActiveLactationTimer() async => null;
 
   @override
-  Future<void> startLactationTimer(LactationSide side) async {
-    await _userDoc.set({
-      'lactation_timer': {
-        'side': side.index,
-        'startedAt': DateTime.now().toIso8601String(),
-      },
-    }, SetOptions(merge: true));
-  }
+  Future<void> startLactationTimer(LactationSide side) async {}
 
   @override
-  Future<LactationTimer?> stopLactationTimer() async {
-    final timer = await getActiveLactationTimer();
-    await _userDoc.update({'lactation_timer': FieldValue.delete()});
-    return timer;
-  }
-
-  @override
-  Future<List<String>> getHomeCardOrder() async {
-    final familyId = await _getOrCreateFamilyId();
-    final doc = await _familyDoc(familyId).get();
-    final settings = doc.data()?['app_settings'] as Map<String, dynamic>?;
-    final order = settings?['homeCardOrder'] as List?;
-    return order != null ? List<String>.from(order) : ['weight', 'feeding', 'diapers'];
-  }
-
-  @override
-  Future<void> setHomeCardOrder(List<String> order) async {
-    final familyId = await _getOrCreateFamilyId();
-    final doc = await _familyDoc(familyId).get();
-    final data = doc.data() ?? {};
-    final settings = Map<String, dynamic>.from(data['app_settings'] as Map? ?? {});
-    settings['homeCardOrder'] = order;
-    await _familyDoc(familyId).update({'app_settings': settings});
-  }
+  Future<LactationTimer?> stopLactationTimer() async => null;
 
   @override
   Future<String?> getFamilyId() async {
@@ -439,6 +490,14 @@ class StorageServiceFirebase implements StorageService {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<void> resetLocalSyncState() async {}
+
+  @override
+  void clearRemoteSessionCache() {
+    _memoryFamilyId = null;
   }
 
   @override
@@ -466,5 +525,6 @@ class StorageServiceFirebase implements StorageService {
       }
       tx.set(_userDoc, {'familyId': familyId}, SetOptions(merge: true));
     });
+    _memoryFamilyId = familyId;
   }
 }

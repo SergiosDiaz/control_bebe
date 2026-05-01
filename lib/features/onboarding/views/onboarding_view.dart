@@ -1,11 +1,15 @@
+import 'package:control_bebe/l10n/app_date_locale.dart';
+import 'package:control_bebe/l10n/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/auth/auth_service.dart';
 import '../../../core/db/isar_service.dart';
+import '../../../core/providers/baby_profile_provider.dart';
 import '../../../core/firebase/firebase_service.dart';
 import '../../../core/models/baby_profile.dart';
 import '../../auth/views/family_qr_join_screen.dart';
@@ -46,25 +50,22 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
   }
 
   Future<void> _completeCreate() async {
+    final l10n = AppLocalizations.of(context)!;
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       if (mounted) {
         setState(() => _createStep = 0);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Introduce el nombre del bebé')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.onboardingEnterName)));
       }
       return;
     }
     if (!(_formKey.currentState?.validate() ?? false)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Revisa la talla: número entre 25 y 130 cm, o deja el campo vacío',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.onboardingHeightReview)));
       }
       return;
     }
@@ -87,6 +88,7 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
       await IsarService.saveBabyProfile(profile);
       await IsarService.completeOnboarding();
       if (!mounted) return;
+      ref.invalidate(babyProfileProvider);
       await _notifyFinished();
     } on FirebaseException catch (e) {
       debugPrint('[onboarding] guardar perfil: $e');
@@ -95,8 +97,8 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
           SnackBar(
             content: Text(
               e.code == 'permission-denied'
-                  ? 'Sin permiso en Firebase (reglas o sesión). Revisa Firestore.'
-                  : 'No se pudo guardar (${e.code}). Revisa conexión y Firebase.',
+                  ? l10n.onboardingSaveDenied
+                  : l10n.onboardingSaveFailed(e.code),
             ),
           ),
         );
@@ -104,9 +106,9 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
     } catch (e, st) {
       debugPrint('[onboarding] guardar perfil: $e\n$st');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo guardar: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.onboardingSaveError(e))));
       }
     }
   }
@@ -114,29 +116,30 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
   Future<void> _joinAndComplete(String familyId) async {
     await IsarService.joinFamily(familyId);
     await IsarService.completeOnboarding();
+    if (!mounted) return;
+    ref.invalidate(babyProfileProvider);
     await _notifyFinished();
   }
 
   Future<void> _confirmExitToLogin() async {
+    final l10n = AppLocalizations.of(context)!;
     final go = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTheme.dialogRadius),
         ),
-        title: const Text('¿Salir?'),
-        content: const Text(
-          'Cerrarás sesión y volverás a la pantalla de inicio de sesión.',
-        ),
+        title: Text(l10n.onboardingExitTitle),
+        content: Text(l10n.onboardingExitBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+            child: Text(l10n.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              'Salir',
+              l10n.commonExit,
               style: TextStyle(color: Theme.of(ctx).colorScheme.error),
             ),
           ),
@@ -151,9 +154,10 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo cerrar sesión: $e')),
-        );
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.onboardingSignOutError(e))));
       }
     }
   }
@@ -210,6 +214,7 @@ class _ChoiceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
@@ -251,37 +256,38 @@ class _ChoiceScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        'Bienvenido a MiBebé Diario',
+                        l10n.onboardingWelcome,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppTheme.textDark,
                             ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '¿Cómo quieres empezar?',
+                        l10n.onboardingHowStart,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppTheme.textLight,
-                            ),
+                          color: AppTheme.textLight,
+                        ),
                       ),
                       const SizedBox(height: 40),
                       _ChoiceCard(
                         icon: Icons.add_circle_outline,
                         iconColor: AppTheme.primaryBlue,
-                        title: 'Crear bebé',
-                        subtitle: 'Configura un nuevo perfil desde cero',
+                        title: l10n.onboardingCreateBabyTitle,
+                        subtitle: l10n.onboardingCreateBabySubtitle,
                         onTap: onCreate,
                       ),
                       const SizedBox(height: 16),
                       _ChoiceCard(
                         icon: Icons.qr_code_scanner,
                         iconColor: AppTheme.primaryGreen,
-                        title: 'Escanear bebé',
+                        title: l10n.onboardingScanTitle,
                         subtitle: canScan
-                            ? 'Únete a un bebé ya creado escaneando su código QR'
-                            : 'Requiere Firebase para compartir',
+                            ? l10n.onboardingScanSubtitle
+                            : l10n.onboardingScanDisabled,
                         onTap: canScan ? onScan : null,
                       ),
                       const SizedBox(height: 24),
@@ -293,11 +299,11 @@ class _ChoiceScreen extends StatelessWidget {
                 onPressed: onExitToLogin,
                 icon: Icon(Icons.logout, size: 20, color: AppTheme.textLight),
                 label: Text(
-                  'Salir y volver al inicio de sesión',
+                  l10n.onboardingExitLogin,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textLight,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: AppTheme.textLight,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -341,7 +347,11 @@ class _ChoiceCard extends StatelessWidget {
                   color: iconColor.withValues(alpha: enabled ? 0.15 : 0.08),
                   borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
                 ),
-                child: Icon(icon, color: enabled ? iconColor : AppTheme.textLight, size: 28),
+                child: Icon(
+                  icon,
+                  color: enabled ? iconColor : AppTheme.textLight,
+                  size: 28,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -351,16 +361,16 @@ class _ChoiceCard extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: enabled ? AppTheme.textDark : AppTheme.textLight,
-                          ),
+                        fontWeight: FontWeight.w600,
+                        color: enabled ? AppTheme.textDark : AppTheme.textLight,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.textLight,
-                          ),
+                        color: AppTheme.textLight,
+                      ),
                     ),
                   ],
                 ),
@@ -417,16 +427,18 @@ class _CreateBabyScreen extends StatelessWidget {
     await onComplete();
   }
 
-  static String? _optionalHeightCmValidator(String? v) {
+  String? _optionalHeightCmValidator(BuildContext context, String? v) {
+    final l10n = AppLocalizations.of(context)!;
     if (v == null || v.trim().isEmpty) return null;
     final n = double.tryParse(v.trim().replaceAll(',', '.'));
-    if (n == null) return 'Introduce un número válido (ej: 52,5)';
-    if (n < 25 || n > 130) return 'Altura habitual entre 25 y 130 cm';
+    if (n == null) return l10n.onboardingHeightInvalid;
+    if (n < 25 || n > 130) return l10n.onboardingHeightRange;
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
@@ -434,12 +446,12 @@ class _CreateBabyScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: onBack,
         ),
-        title: const Text('Configurar bebé'),
+        title: Text(l10n.onboardingConfigureTitle),
         actions: [
           TextButton(
             onPressed: () => onExitToLogin(),
             child: Text(
-              'Salir',
+              l10n.commonExit,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.error,
                 fontWeight: FontWeight.w600,
@@ -490,20 +502,21 @@ class _CreateBabyScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Crear perfil del bebé',
+                      l10n.onboardingCreateProfileTitle,
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textDark,
                           ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Configura los datos de tu bebé',
+                      l10n.onboardingCreateProfileSubtitle,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.textLight,
-                          ),
+                        color: AppTheme.textLight,
+                      ),
                     ),
                     const SizedBox(height: 32),
                     _buildStepContent(context),
@@ -527,7 +540,7 @@ class _CreateBabyScreen extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () => _onPrimaryPressed(),
                     child: Text(
-                      step < 3 ? 'Siguiente' : 'Comenzar',
+                      step < 3 ? l10n.onboardingNext : l10n.onboardingStart,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -541,23 +554,24 @@ class _CreateBabyScreen extends StatelessWidget {
   }
 
   Widget _buildStepContent(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     switch (step) {
       case 0:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Nombre del bebé',
+              l10n.onboardingBabyName,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: nameController,
               decoration: InputDecoration(
-                hintText: 'Ej: María, Lucas...',
+                hintText: l10n.onboardingBabyNameHint,
                 prefixIcon: Icon(
                   Icons.badge_outlined,
                   color: AppTheme.textLight,
@@ -565,7 +579,7 @@ class _CreateBabyScreen extends StatelessWidget {
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
-                  return 'El nombre es obligatorio';
+                  return l10n.onboardingNameRequired;
                 }
                 return null;
               },
@@ -579,18 +593,18 @@ class _CreateBabyScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Género',
+              l10n.onboardingGender,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
                   child: _GenderOption(
-                    label: 'Niño',
+                    label: l10n.commonGenderBoy,
                     icon: Icons.boy,
                     selected: isMale,
                     onTap: () => onIsMaleChanged(true),
@@ -599,7 +613,7 @@ class _CreateBabyScreen extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _GenderOption(
-                    label: 'Niña',
+                    label: l10n.commonGenderGirl,
                     icon: Icons.girl,
                     selected: !isMale,
                     onTap: () => onIsMaleChanged(false),
@@ -614,11 +628,11 @@ class _CreateBabyScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Fecha de nacimiento',
+              l10n.onboardingBirthDate,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
+              ),
             ),
             const SizedBox(height: 12),
             InkWell(
@@ -626,15 +640,20 @@ class _CreateBabyScreen extends StatelessWidget {
                 final date = await showDatePicker(
                   context: context,
                   initialDate: birthDate,
-                  firstDate: DateTime.now().subtract(const Duration(days: 365 * 2)),
+                  firstDate: DateTime.now().subtract(
+                    const Duration(days: 365 * 2),
+                  ),
                   lastDate: DateTime.now(),
-                  locale: const Locale('es', 'ES'),
+                  locale: Localizations.localeOf(context),
                 );
                 if (date != null) onBirthDateChanged(date);
               },
               borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 18,
+                ),
                 decoration: BoxDecoration(
                   color: AppTheme.fieldBackground,
                   borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
@@ -645,10 +664,12 @@ class _CreateBabyScreen extends StatelessWidget {
                     Icon(Icons.calendar_today, color: AppTheme.textLight),
                     const SizedBox(width: 16),
                     Text(
-                      '${birthDate.day}/${birthDate.month}/${birthDate.year}',
+                      DateFormat.yMMMd(
+                        dateFormatLanguageCode(context),
+                      ).format(birthDate),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppTheme.textDark,
-                          ),
+                        color: AppTheme.textDark,
+                      ),
                     ),
                     const Spacer(),
                     Icon(Icons.chevron_right, color: AppTheme.textLight),
@@ -658,10 +679,10 @@ class _CreateBabyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Se usa para calcular percentiles OMS (0-12 meses)',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textLight,
-                  ),
+              l10n.onboardingBirthNote,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textLight),
             ),
           ],
         );
@@ -670,32 +691,34 @@ class _CreateBabyScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Talla / altura',
+              l10n.onboardingHeightTitle,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
-              'Opcional. La altura actual en centímetros (aparece en el perfil).',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textLight,
-                  ),
+              l10n.onboardingHeightSubtitle,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textLight),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: heightController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: InputDecoration(
-                hintText: 'Dejar vacío si no la conoces',
+                hintText: l10n.onboardingHeightHint,
                 prefixIcon: Icon(
                   Icons.straighten_outlined,
                   color: AppTheme.textLight,
                 ),
                 suffixText: 'cm',
               ),
-              validator: _optionalHeightCmValidator,
+              validator: (v) => _optionalHeightCmValidator(context, v),
             ),
           ],
         );
@@ -745,7 +768,11 @@ class _GenderOption extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 48, color: selected ? AppTheme.primaryBlue : AppTheme.textLight),
+            Icon(
+              icon,
+              size: 48,
+              color: selected ? AppTheme.primaryBlue : AppTheme.textLight,
+            ),
             const SizedBox(height: 8),
             Text(
               label,

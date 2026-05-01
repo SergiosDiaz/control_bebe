@@ -1,9 +1,12 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, debugPrint;
+import 'package:flutter/material.dart' show Locale;
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../l10n/app_localizations.dart';
 import '../db/isar_service.dart';
 
 /// Notificación local cuando llega la hora sugerida de la siguiente toma.
@@ -17,9 +20,8 @@ class NextFeedingNotificationService {
   static const String _channelId = 'next_feeding_reminder';
 
   static bool get _supported =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
 
   static Future<void> init() async {
     if (!_supported) return;
@@ -39,11 +41,15 @@ class NextFeedingNotificationService {
 
     final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
+    final loc = WidgetsBinding.instance.platformDispatcher.locale;
+    final l10n = lookupAppLocalizations(
+      loc.languageCode == 'en' ? const Locale('en') : const Locale('es'),
+    );
     await androidPlugin?.createNotificationChannel(
-      const AndroidNotificationChannel(
+      AndroidNotificationChannel(
         _channelId,
-        'Próximas tomas',
-        description: 'Aviso cuando llega la hora sugerida de toma',
+        l10n.notificationChannelName,
+        description: l10n.notificationChannelDescription,
         importance: Importance.high,
       ),
     );
@@ -92,17 +98,21 @@ class NextFeedingNotificationService {
     if (!next.isAfter(DateTime.now())) return;
 
     final when = tz.TZDateTime.from(next, tz.local);
+    final loc = WidgetsBinding.instance.platformDispatcher.locale;
+    final l10n = lookupAppLocalizations(
+      loc.languageCode == 'en' ? const Locale('en') : const Locale('es'),
+    );
     try {
       await _plugin.zonedSchedule(
         _notificationId,
-        'Próxima toma',
-        'Podría tocar otra toma para ${baby.name}.',
+        l10n.notificationNextFeedTitle,
+        l10n.notificationNextFeedBody(baby.name),
         when,
         NotificationDetails(
           android: AndroidNotificationDetails(
             _channelId,
-            'Próximas tomas',
-            channelDescription: 'Aviso cuando llega la hora sugerida de toma',
+            l10n.notificationChannelName,
+            channelDescription: l10n.notificationChannelDescription,
             importance: Importance.high,
             priority: Priority.high,
           ),

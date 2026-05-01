@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:control_bebe/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../core/db/isar_service.dart';
+import '../../../core/models/feeding_record.dart';
+import '../../../core/providers/baby_profile_provider.dart';
 import '../../../core/providers/record_stream_providers.dart';
 import '../../../core/services/next_feeding_notification_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -121,13 +125,14 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
   }
 
   Future<void> _openSettings() async {
-    final baby = await IsarService.getBabyProfile();
+    final baby = await ref.read(babyProfileProvider.future);
     if (!mounted) return;
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => SettingsPage(initialBaby: baby)),
     );
     if (!mounted) return;
+    resetRecordHistoryFirestoreDays(ref);
     ref.invalidate(weightRecordsStreamProvider);
     ref.invalidate(diaperRecordsStreamProvider);
     ref.invalidate(feedingRecordsStreamProvider);
@@ -136,13 +141,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
 
   @override
   Widget build(BuildContext context) {
-    // Reprogramar notificación cada vez que cambia el historial de tomas en Firestore,
-    // incluso si fue otra persona de la familia quien registró la toma.
-    ref.listen<AsyncValue<List>>(feedingRecordsStreamProvider, (_, next) {
-      if (next is AsyncData) {
-        NextFeedingNotificationService.syncFromStorage();
-      }
-    });
+    final l10n = AppLocalizations.of(context)!;
 
     final screens = [
       HomeView(
@@ -155,20 +154,30 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
         onTitleTap: _goHome,
         onSettingsTap: _openSettings,
         scrollController: _diapersScrollController,
+        isActiveTab: _currentIndex == 1,
       ),
       FeedingView(
         onTitleTap: _goHome,
         onSettingsTap: _openSettings,
         scrollController: _feedingScrollController,
+        isActiveTab: _currentIndex == 2,
       ),
       WeightView(
         onTitleTap: _goHome,
         onSettingsTap: _openSettings,
         scrollController: _weightScrollController,
+        isActiveTab: _currentIndex == 3,
       ),
     ];
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: screens),
+      body: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          IndexedStack(index: _currentIndex, children: screens),
+          if (_currentIndex == 0 || _currentIndex == 2)
+            const _FeedingStreamNotificationHook(),
+        ],
+      ),
       bottomNavigationBar: Material(
         elevation: 12,
         shadowColor: Colors.black26,
@@ -194,7 +203,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                       child: _NavItem(
                         icon: Icons.home_rounded,
                         activeIcon: Icons.home_rounded,
-                        label: 'INICIO',
+                        label: l10n.navHome,
                         isSelected: _currentIndex == 0,
                         selectedBackground: AppTheme.navHomeSelectedFill,
                         selectedForeground: AppTheme.navHomeSelectedFg,
@@ -205,7 +214,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                       child: _NavItem(
                         icon: MdiIcons.humanBabyChangingTable,
                         activeIcon: MdiIcons.humanBabyChangingTable,
-                        label: 'PAÑALES',
+                        label: l10n.navDiapers,
                         isSelected: _currentIndex == 1,
                         selectedBackground: AppTheme.navDiapersSelectedFill,
                         selectedForeground: AppTheme.navDiapersSelectedFg,
@@ -215,7 +224,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                     Expanded(
                       child: _NavItem(
                         fontAwesomeIcon: FontAwesomeIcons.utensils,
-                        label: 'ALIMENTACIÓN',
+                        label: l10n.navFeeding,
                         isSelected: _currentIndex == 2,
                         selectedBackground: AppTheme.navFeedingSelectedFill,
                         selectedForeground: AppTheme.navFeedingSelectedFg,
@@ -226,7 +235,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
                       child: _NavItem(
                         icon: Icons.monitor_weight_rounded,
                         activeIcon: Icons.monitor_weight_rounded,
-                        label: 'PESO',
+                        label: l10n.navWeight,
                         isSelected: _currentIndex == 3,
                         selectedBackground: AppTheme.navWeightSelectedFill,
                         selectedForeground: AppTheme.navWeightSelectedFg,
@@ -244,11 +253,32 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
   }
 }
 
-/// Alimentación (Font Awesome): tamaño de referencia, algo menor que Material/MDI.
-const double _kBottomNavIconSizeFa = 24;
+/// Suscripción a tomas solo con Inicio o Alimentación visibles (evita listeners en pañales/peso).
+class _FeedingStreamNotificationHook extends ConsumerWidget {
+  const _FeedingStreamNotificationHook();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<AsyncValue<List<FeedingRecord>>>(
+      feedingRecordsStreamProvider,
+      (_, next) {
+        if (next is AsyncData<List<FeedingRecord>>) {
+          unawaited(NextFeedingNotificationService.syncFromStorage());
+        }
+      },
+    );
+    return const SizedBox.shrink();
+  }
+}
+
+/// Ranura fija para centrar iconos de distintas fuentes (Material / MDI / FA) en la misma línea.
+const double _kBottomNavIconSlotHeight = 32;
+
+/// Tamaño del glifo dentro de la ranura (FA suele verse más “pesado” a igual pt).
+const double _kBottomNavIconSizeFa = 22;
 
 /// Inicio, pañales y peso ([Icon] / MDI).
-const double _kBottomNavIconSizeMaterial = 30;
+const double _kBottomNavIconSizeMaterial = 26;
 
 /// Misma altura de cápsula en las cuatro pestañas (hueco repartido por [Expanded]).
 const double _kNavPillHeight = 64;
@@ -306,17 +336,23 @@ class _NavItem extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              fontAwesomeIcon != null
-                  ? FaIcon(
-                      fontAwesomeIcon,
-                      size: _kBottomNavIconSizeFa,
-                      color: iconColor,
-                    )
-                  : Icon(
-                      isSelected ? activeIcon! : icon!,
-                      size: _kBottomNavIconSizeMaterial,
-                      color: iconColor,
-                    ),
+              SizedBox(
+                height: _kBottomNavIconSlotHeight,
+                width: _kBottomNavIconSlotHeight,
+                child: Center(
+                  child: fontAwesomeIcon != null
+                      ? FaIcon(
+                          fontAwesomeIcon,
+                          size: _kBottomNavIconSizeFa,
+                          color: iconColor,
+                        )
+                      : Icon(
+                          isSelected ? activeIcon! : icon!,
+                          size: _kBottomNavIconSizeMaterial,
+                          color: iconColor,
+                        ),
+                ),
+              ),
               const SizedBox(height: 1),
               Text(
                 label,

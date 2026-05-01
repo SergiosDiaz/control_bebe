@@ -1,7 +1,11 @@
-// Facade que delega al StorageService (Isar en IO, SharedPreferences en Web).
+// Facade que delega al StorageService (Firestore vía cola + prefs en disco).
 // Mantiene la API original para compatibilidad con el resto de la app.
+import 'dart:async';
+
 import 'storage_interface.dart';
 import 'storage_service.dart';
+
+import '../services/app_review_scheduler.dart';
 
 import '../models/baby_profile.dart';
 import '../models/weight_record.dart';
@@ -23,18 +27,42 @@ class IsarService {
   static Future<BabyProfile?> getBabyProfile() => _s.getBabyProfile();
   static Future<void> saveBabyProfile(BabyProfile profile) => _s.saveBabyProfile(profile);
 
-  static Stream<List<WeightRecord>> watchWeightRecords() => _s.watchWeightRecords();
-  static Future<void> addWeightRecord(WeightRecord record) => _s.addWeightRecord(record);
+  static Stream<List<WeightRecord>> watchWeightRecordsSince(DateTime from) =>
+      _s.watchWeightRecordsSince(from);
+
+  static Stream<List<WeightRecord>> watchAllWeightRecords() =>
+      _s.watchAllWeightRecords();
+
+  static Future<bool> hasWeightRecordStrictlyBefore(DateTime exclusiveUpper) =>
+      _s.hasWeightRecordStrictlyBefore(exclusiveUpper);
+  static Future<void> addWeightRecord(WeightRecord record) async {
+    await _s.addWeightRecord(record);
+    unawaited(AppReviewScheduler.maybePrompt());
+  }
   static Future<void> updateWeightRecord(WeightRecord record) => _s.updateWeightRecord(record);
   static Future<void> deleteWeightRecord(int id) => _s.deleteWeightRecord(id);
 
-  static Stream<List<DiaperRecord>> watchDiaperRecords() => _s.watchDiaperRecords();
-  static Future<void> addDiaperRecord(DiaperRecord record) => _s.addDiaperRecord(record);
+  static Stream<List<DiaperRecord>> watchDiaperRecordsSince(DateTime from) =>
+      _s.watchDiaperRecordsSince(from);
+
+  static Future<bool> hasDiaperRecordStrictlyBefore(DateTime exclusiveUpper) =>
+      _s.hasDiaperRecordStrictlyBefore(exclusiveUpper);
+  static Future<void> addDiaperRecord(DiaperRecord record) async {
+    await _s.addDiaperRecord(record);
+    unawaited(AppReviewScheduler.maybePrompt());
+  }
   static Future<void> updateDiaperRecord(DiaperRecord record) => _s.updateDiaperRecord(record);
   static Future<void> deleteDiaperRecord(int id) => _s.deleteDiaperRecord(id);
 
-  static Stream<List<FeedingRecord>> watchFeedingRecords() => _s.watchFeedingRecords();
-  static Future<void> addFeedingRecord(FeedingRecord record) => _s.addFeedingRecord(record);
+  static Stream<List<FeedingRecord>> watchFeedingRecordsSince(DateTime from) =>
+      _s.watchFeedingRecordsSince(from);
+
+  static Future<bool> hasFeedingRecordStrictlyBefore(DateTime exclusiveUpper) =>
+      _s.hasFeedingRecordStrictlyBefore(exclusiveUpper);
+  static Future<void> addFeedingRecord(FeedingRecord record) async {
+    await _s.addFeedingRecord(record);
+    unawaited(AppReviewScheduler.maybePrompt());
+  }
   static Future<void> updateFeedingRecord(FeedingRecord record) => _s.updateFeedingRecord(record);
   static Future<void> deleteFeedingRecord(int id) => _s.deleteFeedingRecord(id);
 
@@ -42,8 +70,6 @@ class IsarService {
   static Future<void> startLactationTimer(LactationSide side) => _s.startLactationTimer(side);
   static Future<LactationTimer?> stopLactationTimer() => _s.stopLactationTimer();
 
-  static Future<List<String>> getHomeCardOrder() => _s.getHomeCardOrder();
-  static Future<void> setHomeCardOrder(List<String> order) => _s.setHomeCardOrder(order);
   static Future<String?> getFamilyId() => _s.getFamilyId();
   static Future<void> joinFamily(String familyId) => _s.joinFamily(familyId);
 

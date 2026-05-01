@@ -1,8 +1,10 @@
 // Punto de entrada del almacenamiento.
-// Usa Firestore para todas las plataformas.
+// Firestore remoto + cola local con reintentos (fiabilidad de escritura).
 import 'storage_firebase.dart';
 import 'storage_interface.dart';
+import 'storage_queued.dart';
 
-StorageService _storage = StorageServiceFirebase();
+final StorageServiceFirebase _firebaseBackend = StorageServiceFirebase();
+final QueuedStorageService _queuedStorage = QueuedStorageService(_firebaseBackend);
 
-StorageService get storage => _storage;
+StorageService get storage => _queuedStorage;

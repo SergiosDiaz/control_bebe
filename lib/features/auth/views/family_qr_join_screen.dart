@@ -1,3 +1,4 @@
+import 'package:control_bebe/l10n/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,13 +10,13 @@ import '../../../core/theme/app_theme.dart';
 class FamilyQrJoinScreen extends StatefulWidget {
   final Future<void> Function(String familyId) onScanned;
   final VoidCallback onBack;
-  final String hintText;
+  final String? hintText;
 
   const FamilyQrJoinScreen({
     super.key,
     required this.onScanned,
     required this.onBack,
-    this.hintText = 'Apunta la cámara al código QR del bebé',
+    this.hintText,
   });
 
   @override
@@ -31,44 +32,49 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
   bool _processing = false;
   String? _error;
 
-  static String _joinFailureDescription(Object error, StackTrace stackTrace) {
+  String _joinFailureDescription(
+    BuildContext context,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
     final technical = _technicalErrorText(error);
-    final summary = _joinFailureSummary(error);
+    final summary = _joinFailureSummary(context, error);
     final String body;
     if (technical == summary) {
       body = summary;
     } else {
-      body = '$summary\n\nDetalle: $technical';
+      body = '$summary\n\n${l10n.familyQrDetailLabel} $technical';
     }
-    // Mismo contenido que debugPrint en _onDetect, visible en la UI para diagnóstico.
     return '$body\n\n[QR join] $error\n$stackTrace';
   }
 
-  static String _joinFailureSummary(Object error) {
+  String _joinFailureSummary(BuildContext context, Object error) {
+    final l10n = AppLocalizations.of(context)!;
     if (error is FirebaseException) {
       switch (error.code) {
         case 'permission-denied':
-          return 'Permiso denegado en Firebase (reglas de Firestore o sesión).';
+          return l10n.familyQrJoinFailPermission;
         case 'unavailable':
-          return 'Firebase no está disponible. Revisa la conexión a internet.';
+          return l10n.familyQrJoinFailUnavailable;
         case 'not-found':
         case 'not_found':
-          return 'Recurso no encontrado en Firebase.';
+          return l10n.familyQrJoinFailNotFound;
         default:
-          return 'Error de Firebase (${error.code}).';
+          return l10n.familyQrJoinFailFirebase(error.code);
       }
     }
     if (error is StateError) {
       final m = error.message;
-      if (m.contains('no encontrada')) {
-        return 'Familia no encontrada. Comprueba que el QR sea correcto.';
+      if (m.contains('no encontrada') || m.contains('not found')) {
+        return l10n.familyQrJoinFailFamily;
       }
-      return 'Error al procesar el código del QR.';
+      return l10n.familyQrJoinFailState;
     }
     if (error is UnsupportedError) {
-      return 'Unirse por QR no está disponible (hace falta Firebase en este dispositivo).';
+      return l10n.familyQrJoinFailUnsupported;
     }
-    return 'No se pudo unir a la familia.';
+    return l10n.familyQrJoinFailGeneric;
   }
 
   static String _technicalErrorText(Object error) {
@@ -104,7 +110,7 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
       if (mounted) {
         setState(() {
           _processing = false;
-          _error = _joinFailureDescription(e, st);
+          _error = _joinFailureDescription(context, e, st);
         });
       }
     }
@@ -113,14 +119,19 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
   void _onDetectError(Object error, StackTrace stackTrace) {
     debugPrint('[QR decode] $error\n$stackTrace');
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     setState(() {
       _processing = false;
       _error =
-          'Fallo al leer o decodificar el código.\n\nDetalle: ${error.toString()}\n\n[QR decode] $error\n$stackTrace';
+          '${l10n.familyQrDecodeFail}\n\n${l10n.familyQrDetailLabel} ${error.toString()}\n\n[QR decode] $error\n$stackTrace';
     });
   }
 
-  Widget _cameraErrorWidget(BuildContext context, MobileScannerException error) {
+  Widget _cameraErrorWidget(
+    BuildContext context,
+    MobileScannerException error,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
     final detail = error.errorDetails?.message;
     return ColoredBox(
       color: Colors.black,
@@ -142,14 +153,20 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
                 Text(
                   detail,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 14,
+                  ),
                 ),
               ],
               const SizedBox(height: 12),
               Text(
-                'Código interno: ${error.errorCode.name}',
+                '${l10n.familyQrInternalCode} ${error.errorCode.name}',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 12),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.65),
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
@@ -160,6 +177,8 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final displayHint = widget.hintText ?? l10n.familyQrHint;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
@@ -172,15 +191,15 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
             icon: const Icon(Icons.arrow_back),
             onPressed: widget.onBack,
           ),
-          title: const Text('Escanear código QR'),
+          title: Text(l10n.familyQrTitle),
         ),
         body: Stack(
           children: [
             MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-            onDetectError: _onDetectError,
-            errorBuilder: _cameraErrorWidget,
+              controller: _controller,
+              onDetect: _onDetect,
+              onDetectError: _onDetectError,
+              errorBuilder: _cameraErrorWidget,
             ),
             Center(
               child: Container(
@@ -200,9 +219,12 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
               child: Column(
                 children: [
                   Text(
-                    widget.hintText,
+                    displayHint,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 16,
+                    ),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
@@ -210,12 +232,17 @@ class _FamilyQrJoinScreenState extends State<FamilyQrJoinScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.red.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.fieldRadius,
+                        ),
                       ),
                       child: SelectableText(
                         _error!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],

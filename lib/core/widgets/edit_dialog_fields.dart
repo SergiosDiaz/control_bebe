@@ -1,3 +1,6 @@
+import 'package:control_bebe/l10n/app_localizations.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -20,53 +23,221 @@ class DatePickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final loc = Localizations.localeOf(context);
+    final dateLang = loc.languageCode == 'en' ? 'en' : 'es';
     return _TapField(
       icon: Icons.calendar_today,
-      label: 'Fecha',
-      value: DateFormat('d MMM yyyy', 'es').format(value),
-      onTap: () async {
-        final date = await showDatePicker(
-          context: context,
-          initialDate: value,
-          firstDate: firstDate ?? DateTime(2020),
-          lastDate: lastDate ?? DateTime.now().add(const Duration(days: 365)),
-          locale: const Locale('es', 'ES'),
+      label: l10n.commonDate,
+      value: DateFormat('d MMM yyyy', dateLang).format(value),
+      onTap: () {
+        if (!context.mounted) return;
+        final min = _dateOnly(firstDate ?? DateTime(2020));
+        final max = _dateOnly(
+          lastDate ?? DateTime.now().add(const Duration(days: 365)),
         );
-        if (date != null) onChanged(date);
+        final day = _dateOnly(value);
+        final initial =
+            day.isBefore(min) ? min : (day.isAfter(max) ? max : day);
+        final future = defaultTargetPlatform == TargetPlatform.iOS
+            ? showCupertinoDatePickerSheet(
+                context,
+                initial,
+                min,
+                max,
+                l10n,
+              )
+            : showDatePicker(
+                context: context,
+                initialDate: initial,
+                firstDate: min,
+                lastDate: max,
+                locale: loc,
+              );
+        future.then((date) {
+          if (!context.mounted) return;
+          if (date != null) onChanged(date);
+        });
       },
     );
   }
 }
 
-/// Campo táctil para seleccionar hora. Diseñado para iOS.
+DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+/// Muestra el selector de fecha nativo de iOS en un `showCupertinoModalPopup`,
+/// con header (Cancelar / Listo) y rueda de fecha. Devuelve la fecha
+/// seleccionada o `null` si el usuario cancela.
+Future<DateTime?> showCupertinoDatePickerSheet(
+  BuildContext context,
+  DateTime initialDay,
+  DateTime minimumDate,
+  DateTime maximumDate,
+  AppLocalizations l10n,
+) {
+  var selected = initialDay;
+  return showCupertinoModalPopup<DateTime>(
+    context: context,
+    builder: (ctx) {
+      final bottom = MediaQuery.paddingOf(ctx).bottom;
+      return Container(
+        color: CupertinoColors.systemBackground.resolveFrom(ctx),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: CupertinoColors.separator.resolveFrom(ctx),
+                    ),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(l10n.commonCancel),
+                    ),
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      onPressed: () => Navigator.pop(ctx, selected),
+                      child: Text(l10n.commonDone),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 216,
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: initialDay,
+                  minimumDate: minimumDate,
+                  maximumDate: maximumDate,
+                  onDateTimeChanged: (dt) {
+                    selected = _dateOnly(dt);
+                  },
+                ),
+              ),
+              SizedBox(height: bottom),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// Campo táctil para seleccionar hora. En iOS usa rueda nativa (Cupertino).
 class TimePickerField extends StatelessWidget {
   final TimeOfDay value;
   final ValueChanged<TimeOfDay> onChanged;
-  final String label;
+  final String? label;
 
   const TimePickerField({
     super.key,
     required this.value,
     required this.onChanged,
-    this.label = 'Hora',
+    this.label,
   });
 
   @override
   Widget build(BuildContext context) {
-    final text = '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+    final l10n = AppLocalizations.of(context)!;
+    final text =
+        '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
     return _TapField(
       icon: Icons.access_time,
-      label: label,
+      label: label ?? l10n.commonTime,
       value: text,
-      onTap: () async {
-        final time = await showTimePicker(
-          context: context,
-          initialTime: value,
-        );
-        if (time != null) onChanged(time);
+      onTap: () {
+        if (!context.mounted) return;
+        final future = defaultTargetPlatform == TargetPlatform.iOS
+            ? _showCupertinoTimePicker(context, value, l10n)
+            : showTimePicker(
+                context: context,
+                initialTime: value,
+              );
+        future.then((time) {
+          if (!context.mounted) return;
+          if (time != null) onChanged(time);
+        });
       },
     );
   }
+}
+
+Future<TimeOfDay?> _showCupertinoTimePicker(
+  BuildContext context,
+  TimeOfDay initialTime,
+  AppLocalizations l10n,
+) {
+  var selected = initialTime;
+  return showCupertinoModalPopup<TimeOfDay>(
+    context: context,
+    builder: (ctx) {
+      final bottom = MediaQuery.paddingOf(ctx).bottom;
+      return Container(
+        color: CupertinoColors.systemBackground.resolveFrom(ctx),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: CupertinoColors.separator.resolveFrom(ctx),
+                    ),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(l10n.commonCancel),
+                    ),
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      onPressed: () => Navigator.pop(ctx, selected),
+                      child: Text(l10n.commonDone),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 216,
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  use24hFormat: MediaQuery.alwaysUse24HourFormatOf(ctx),
+                  initialDateTime: DateTime(
+                    2000,
+                    1,
+                    1,
+                    initialTime.hour,
+                    initialTime.minute,
+                  ),
+                  onDateTimeChanged: (dt) {
+                    selected = TimeOfDay(hour: dt.hour, minute: dt.minute);
+                  },
+                ),
+              ),
+              SizedBox(height: bottom),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class _TapField extends StatelessWidget {
