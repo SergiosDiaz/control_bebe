@@ -181,10 +181,37 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Future<void> _toggleNotify(bool on) async {
     final b = _baby;
     if (b == null) return;
-    await _saveFeedingSchedule(
-      intervalMinutes: b.expectedFeedingIntervalMinutes,
-      notifyNextFeeding: on,
+    final rollback = b;
+
+    setState(() {
+      _baby = b.copyWith(notifyNextFeeding: on);
+    });
+
+    var notify = on;
+    if (notify) {
+      final ok = await NextFeedingNotificationService.requestPermissions();
+      if (!ok && mounted) {
+        setState(() => _baby = rollback);
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.settingsNotifyPermission)));
+        return;
+      }
+    }
+
+    final clamped = rollback.expectedFeedingIntervalMinutes.clamp(30, 720);
+    final updated = rollback.copyWith(
+      expectedFeedingIntervalMinutes: clamped,
+      notifyNextFeeding: notify,
     );
+    await IsarService.saveBabyProfile(updated);
+    ref.invalidate(babyProfileProvider);
+    unawaited(NextFeedingNotificationService.syncFromStorage());
+    if (mounted) {
+      setState(() => _baby = updated);
+      widget.onProfileSaved?.call(updated);
+    }
   }
 
   Future<void> _deleteAccount() async {
@@ -614,12 +641,15 @@ class _SheetContainer extends StatelessWidget {
   /// Si es true, cabecera + [child] van en un [ListView] con [shrinkWrap] y
   /// altura máxima acotada (no rellena toda la pantalla en vacío).
   final bool scrollBody;
+  /// Solo aplica cuando [scrollBody] es true (p. ej. teclado en hoja de edición).
+  final ScrollViewKeyboardDismissBehavior keyboardDismissBehavior;
 
   const _SheetContainer({
     required this.title,
     this.intro,
     required this.child,
     this.scrollBody = false,
+    this.keyboardDismissBehavior = ScrollViewKeyboardDismissBehavior.manual,
   });
 
   List<Widget> _header(BuildContext context) {
@@ -685,6 +715,7 @@ class _SheetContainer extends StatelessWidget {
                         shrinkWrap: true,
                         primary: false,
                         physics: const ClampingScrollPhysics(),
+                        keyboardDismissBehavior: keyboardDismissBehavior,
                         padding: EdgeInsets.zero,
                         children: [
                           ..._header(context),
@@ -1061,6 +1092,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(vertical: 12),
                   ),
+                  onTapOutside: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
                   style: Theme.of(
                     context,
                   ).textTheme.bodyLarge?.copyWith(color: AppTheme.textDark),
@@ -1120,6 +1153,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                     hintText: l10n.heightFieldHint,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
+                  onTapOutside: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
                   style: Theme.of(
                     context,
                   ).textTheme.bodyLarge?.copyWith(color: AppTheme.textDark),
@@ -1219,15 +1254,14 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Material(
-          color: Colors.transparent,
-          child: _SheetContainer(
-            scrollBody: true,
-            title: l10n.editBabyProfileTitle,
-            child: form,
-          ),
+      child: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: _SheetContainer(
+          scrollBody: true,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          title: l10n.editBabyProfileTitle,
+          child: form,
         ),
       ),
     );

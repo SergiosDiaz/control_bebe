@@ -6,6 +6,7 @@ import 'package:control_bebe/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:keyboard_actions/keyboard_actions.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -43,6 +44,7 @@ class WeightView extends ConsumerStatefulWidget {
   final VoidCallback? onTitleTap;
   final VoidCallback onSettingsTap;
   final ScrollController? scrollController;
+
   /// Si es false, no se suscribe a Firestore hasta que la pestaña sea visible.
   final bool isActiveTab;
 
@@ -60,6 +62,7 @@ class WeightView extends ConsumerStatefulWidget {
 
 class _WeightViewState extends ConsumerState<WeightView> {
   final _weightController = TextEditingController();
+  final _weightFocusNode = FocusNode();
   final _formKey = GlobalKey<FormState>();
   final Set<int> _deletedWeightIds = {};
   DateTime _lastHistoryScrollExpand = DateTime.fromMillisecondsSinceEpoch(0);
@@ -69,14 +72,38 @@ class _WeightViewState extends ConsumerState<WeightView> {
 
   @override
   void dispose() {
+    _weightFocusNode.dispose();
     _weightController.dispose();
     super.dispose();
+  }
+
+  KeyboardActionsConfig _weightKeyboardConfig(AppLocalizations l10n) {
+    return KeyboardActionsConfig(
+      keyboardActionsPlatform: KeyboardActionsPlatform.ALL,
+      keyboardBarColor: AppTheme.softPrimaryFill,
+      nextFocus: false,
+      actions: [
+        KeyboardActionsItem(
+          focusNode: _weightFocusNode,
+          displayArrows: false,
+          toolbarButtons: [
+            (node) => IconButton(
+              icon: const Icon(Icons.check_rounded),
+              color: AppTheme.palettePrimary,
+              tooltip: l10n.commonDone,
+              onPressed: () => node.unfocus(),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   Future<void> _registerWeight() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final prefs = ref.read(measurementPrefsProvider).valueOrNull ??
+    final prefs =
+        ref.read(measurementPrefsProvider).valueOrNull ??
         MeasurementPrefs.defaultsForDispatcher();
     final weightKg = parseWeightInputToKg(_weightController.text, prefs);
     if (weightKg == null || weightKg <= 0) return;
@@ -116,49 +143,53 @@ class _WeightViewState extends ConsumerState<WeightView> {
         const Duration(milliseconds: 500)) {
       return false;
     }
-    final days = ref.read(weightHistoryFirestoreDaysProvider);
-    if (days >= kHistoryPaginationMaxDays) {
-      return false;
-    }
+    final all = ref.read(weightRecordsForChartStreamProvider).valueOrNull;
+    if (all == null) return false;
+    final total = all
+        .where((r) => r.id == null || !_deletedWeightIds.contains(r.id))
+        .length;
+    final limit = ref.read(weightHistoryVisibleLimitProvider);
+    if (limit >= total) return false;
     _lastHistoryScrollExpand = now;
     unawaited(_maybeExpandWeightHistoryWindow());
     return false;
   }
 
   Future<void> _maybeExpandWeightHistoryWindow() async {
-    final hasOlder = await ref.read(hasOlderWeightRecordsProvider.future);
-    if (!mounted || !hasOlder) return;
-    final days = ref.read(weightHistoryFirestoreDaysProvider);
-    if (days >= kHistoryPaginationMaxDays) return;
-    ref.read(weightHistoryFirestoreDaysProvider.notifier).state =
-        days + kHistoryPaginationStepDays;
+    final data = ref.read(weightRecordsForChartStreamProvider).valueOrNull;
+    if (!mounted || data == null) return;
+    final total = data
+        .where((r) => r.id == null || !_deletedWeightIds.contains(r.id))
+        .length;
+    final limit = ref.read(weightHistoryVisibleLimitProvider);
+    if (limit >= total) return;
+    ref.read(weightHistoryVisibleLimitProvider.notifier).state = math.min(
+      limit + kWeightHistoryPageIncrement,
+      total,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final prefs = ref.watch(measurementPrefsProvider).valueOrNull ??
+    final prefs =
+        ref.watch(measurementPrefsProvider).valueOrNull ??
         MeasurementPrefs.defaultsForDispatcher();
-    final recordsAsync = widget.isActiveTab
-        ? ref.watch(weightRecordsStreamProvider)
-        : ref.read(weightRecordsStreamProvider);
     final chartRecordsAsync = widget.isActiveTab
         ? ref.watch(weightRecordsForChartStreamProvider)
         : ref.read(weightRecordsForChartStreamProvider);
-    final hasOlderAsync = widget.isActiveTab
-        ? ref.watch(hasOlderWeightRecordsProvider)
-        : ref.read(hasOlderWeightRecordsProvider);
-    final chartPrefs = ref.watch(weightChartPrefsProvider).valueOrNull ??
+    final historyVisibleLimit = ref.watch(weightHistoryVisibleLimitProvider);
+    final chartPrefs =
+        ref.watch(weightChartPrefsProvider).valueOrNull ??
         WeightChartPrefs.defaults;
     final chartTimeRange = chartPrefs.timeRange;
     final chartPercentile = chartPrefs.percentile;
 
     List<WeightRecord> chartVisibleRecords(List<WeightRecord> raw) => raw
-        .where(
-          (r) => r.id == null || !_deletedWeightIds.contains(r.id),
-        )
+        .where((r) => r.id == null || !_deletedWeightIds.contains(r.id))
         .toList();
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppTheme.background,
       body: SafeArea(
         bottom: false,
@@ -166,453 +197,547 @@ class _WeightViewState extends ConsumerState<WeightView> {
           clipBehavior: Clip.hardEdge,
           children: [
             Positioned.fill(
-              child: ref.watch(babyProfileProvider).when(
-                data: (baby) {
-                  final isMale = baby?.isMale ?? true;
+              child: ref
+                  .watch(babyProfileProvider)
+                  .when(
+                    data: (baby) {
+                      final isMale = baby?.isMale ?? true;
 
-                  return GestureDetector(
-                    onTap: () => FocusScope.of(context).unfocus(),
-                    behavior: HitTestBehavior.opaque,
-                    child: NotificationListener<ScrollNotification>(
-                      onNotification: _onWeightHistoryScrollNotification,
-                      child: SingleChildScrollView(
-                      controller: widget.scrollController,
-                      padding: EdgeInsets.fromLTRB(
-                        AppTheme.screenEdgePadding,
-                        MainAppTitleBar.totalHeight +
-                            AppTheme.contentPaddingTopAfterTitleBar,
-                        AppTheme.screenEdgePadding,
-                        20 + AppTheme.safeBottomPadding(context),
-                      ),
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.monitor_weight,
-                                        color: AppTheme.pageTitleIconWeight,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        l10n.weightTitle,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.textDark,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 24),
-                                  Form(
-                                    key: _formKey,
+                      return GestureDetector(
+                        onTap: () => FocusScope.of(context).unfocus(),
+                        behavior: HitTestBehavior.opaque,
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: _onWeightHistoryScrollNotification,
+                          child: SingleChildScrollView(
+                            controller: widget.scrollController,
+                            padding: EdgeInsets.fromLTRB(
+                              AppTheme.screenEdgePadding,
+                              MainAppTitleBar.totalHeight +
+                                  AppTheme.contentPaddingTopAfterTitleBar,
+                              AppTheme.screenEdgePadding,
+                              20 + AppTheme.safeBottomPadding(context),
+                            ),
+                            keyboardDismissBehavior:
+                                ScrollViewKeyboardDismissBehavior.onDrag,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Card(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(24),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
                                       children: [
-                                        Text(
-                                          weightFieldLabelForPrefs(
-                                            prefs,
-                                            l10n,
-                                          ),
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleSmall
-                                              ?.copyWith(
-                                                color: AppTheme.textLight,
-                                              ),
-                                        ),
-                                        const SizedBox(height: 8),
                                         Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
                                           children: [
-                                            Expanded(
-                                              flex: 2,
-                                              child: SizedBox(
-                                                height: _weightControlHeight,
-                                                child: TextFormField(
-                                                  controller: _weightController,
-                                                  keyboardType:
-                                                      const TextInputType.numberWithOptions(
-                                                        decimal: true,
-                                                      ),
-                                                  textInputAction:
-                                                      TextInputAction.done,
-                                                  expands: true,
-                                                  maxLines: null,
-                                                  minLines: null,
-                                                  textAlignVertical:
-                                                      TextAlignVertical.center,
-                                                  decoration: InputDecoration(
-                                                    hintText: weightEntryHint(
-                                                      prefs,
-                                                      l10n,
-                                                    ),
-                                                    contentPadding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 20,
-                                                        ),
-                                                    isDense: false,
-                                                  ),
-                                                  validator: (v) {
-                                                    if (v == null ||
-                                                        v.trim().isEmpty) {
-                                                      return l10n
-                                                          .weightValidatorEmpty;
-                                                    }
-                                                    final kg =
-                                                        parseWeightInputToKg(
-                                                      v,
-                                                      prefs,
-                                                    );
-                                                    if (kg == null ||
-                                                        kg <= 0 ||
-                                                        kg > 50) {
-                                                      return l10n
-                                                          .weightValidatorInvalid;
-                                                    }
-                                                    return null;
-                                                  },
-                                                ),
-                                              ),
+                                            Icon(
+                                              Icons.monitor_weight,
+                                              color:
+                                                  AppTheme.pageTitleIconWeight,
                                             ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: SizedBox(
-                                                height: _weightControlHeight,
-                                                child: ElevatedButton(
-                                                  onPressed: _registerWeight,
-                                                  style: ElevatedButton.styleFrom(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                        ),
-                                                    minimumSize: const Size(
-                                                      0,
-                                                      _weightControlHeight,
-                                                    ),
-                                                    maximumSize: const Size(
-                                                      double.infinity,
-                                                      _weightControlHeight,
-                                                    ),
-                                                    fixedSize: const Size(
-                                                      double.infinity,
-                                                      _weightControlHeight,
-                                                    ),
-                                                    tapTargetSize:
-                                                        MaterialTapTargetSize
-                                                            .shrinkWrap,
-                                                    visualDensity:
-                                                        VisualDensity.compact,
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              l10n.weightTitle,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleLarge
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppTheme.textDark,
                                                   ),
-                                                  child: FittedBox(
-                                                    fit: BoxFit.scaleDown,
-                                                    child: Text(
-                                                      l10n.weightRegister,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
                                             ),
                                           ],
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  chartRecordsAsync.when(
-                                    skipLoadingOnReload: true,
-                                    data: (records) => _summaryRow(
-                                      context,
-                                      chartVisibleRecords(records),
-                                      prefs,
-                                    ),
-                                    loading: () => const SizedBox(
-                                      height: 80,
-                                      child: Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    ),
-                                    error: (e, _) => StreamRecordLoadError(
-                                      message: l10n.weightStreamError,
-                                      onRetry: () {
-                                        ref.invalidate(
-                                          weightRecordsForChartStreamProvider,
-                                        );
-                                        ref.invalidate(
-                                          weightRecordsStreamProvider,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          chartRecordsAsync.when(
-                            skipLoadingOnReload: true,
-                            data: (records) {
-                              final visible = chartVisibleRecords(records);
-                              final chartRecords = _weightRecordsInChartRange(
-                                visible,
-                                chartTimeRange,
-                              );
-                              return Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      l10n.weightEvolution,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        _ChartFilterPill<WeightPercentile>(
-                                          value: chartPercentile,
-                                          values:
-                                              WeightPercentile.pickerValues,
-                                          labelOf: (p) => p.shortLabel,
-                                          onChanged: (p) => ref
-                                              .read(
-                                                weightChartPrefsProvider
-                                                    .notifier,
-                                              )
-                                              .setPercentile(p),
-                                        ),
-                                        _ChartFilterPill<WeightChartTimeRange>(
-                                          value: chartTimeRange,
-                                          values: WeightChartTimeRange
-                                              .pickerValues,
-                                          labelOf: (r) => r.label(l10n),
-                                          onChanged: (r) => ref
-                                              .read(
-                                                weightChartPrefsProvider
-                                                    .notifier,
-                                              )
-                                              .setTimeRange(r),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    SizedBox(
-                                      height: 220,
-                                      child: chartRecords.isEmpty
-                                          ? Center(
-                                              child: Text(
-                                                visible.isEmpty
-                                                    ? l10n.weightChartEmpty
-                                                    : l10n
-                                                        .weightChartNoDataInRange,
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  color: AppTheme.textLight,
-                                                ),
-                                              ),
-                                            )
-                                          : _WeightChart(
-                                              records: chartRecords,
-                                              prefs: prefs,
-                                              isMale: isMale,
-                                              birthDate: baby?.birthDate ??
-                                                  DateTime.now(),
-                                              percentile: chartPercentile,
-                                            ),
-                                    ),
-                                    if (chartRecords.isNotEmpty) ...[
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Container(
-                                            width: 20,
-                                            height: 3,
-                                            margin: const EdgeInsets.only(
-                                              top: 5,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppTheme.primaryGreen
-                                                  .withValues(alpha: 0.4),
-                                              borderRadius:
-                                                  BorderRadius.circular(2),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
+                                        const SizedBox(height: 24),
+                                        KeyboardActions(
+                                          config: _weightKeyboardConfig(l10n),
+                                          // Sin esto, BottomAreaAvoider mete LayoutBuilder +
+                                          // SingleChildScrollView con minHeight = maxHeight del padre;
+                                          // dentro del Column del card eso puede ser ∞ y rompe el layout.
+                                          disableScroll: true,
+                                          child: Form(
+                                            key: _formKey,
                                             child: Column(
                                               crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                                  CrossAxisAlignment.stretch,
                                               children: [
                                                 Text(
-                                                  l10n.weightChartCaption(
-                                                    chartPercentile.shortLabel,
+                                                  weightFieldLabelForPrefs(
+                                                    prefs,
+                                                    l10n,
                                                   ),
                                                   style: Theme.of(context)
                                                       .textTheme
-                                                      .bodySmall
+                                                      .titleSmall
                                                       ?.copyWith(
-                                                        color: AppTheme
-                                                            .textLight,
-                                                        height: 1.35,
+                                                        color:
+                                                            AppTheme.textLight,
                                                       ),
                                                 ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  l10n.weightChartSource,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall
-                                                      ?.copyWith(
-                                                        color: AppTheme
-                                                            .primaryBlue,
-                                                        height: 1.35,
-                                                        fontStyle:
-                                                            FontStyle.italic,
+                                                const SizedBox(height: 8),
+                                                Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.center,
+                                                  children: [
+                                                    Expanded(
+                                                      flex: 2,
+                                                      child: SizedBox(
+                                                        height:
+                                                            _weightControlHeight,
+                                                        child: TextFormField(
+                                                          controller:
+                                                              _weightController,
+                                                          focusNode:
+                                                              _weightFocusNode,
+                                                          keyboardType:
+                                                              const TextInputType.numberWithOptions(
+                                                                decimal: true,
+                                                              ),
+                                                          textInputAction:
+                                                              TextInputAction
+                                                                  .done,
+                                                          onFieldSubmitted: (_) =>
+                                                              _weightFocusNode
+                                                                  .unfocus(),
+                                                          onTapOutside: (_) =>
+                                                              _weightFocusNode
+                                                                  .unfocus(),
+                                                          expands: true,
+                                                          maxLines: null,
+                                                          minLines: null,
+                                                          textAlignVertical:
+                                                              TextAlignVertical
+                                                                  .center,
+                                                          decoration: InputDecoration(
+                                                            hintText:
+                                                                weightEntryHint(
+                                                                  prefs,
+                                                                  l10n,
+                                                                ),
+                                                            contentPadding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      20,
+                                                                ),
+                                                            isDense: false,
+                                                          ),
+                                                          validator: (v) {
+                                                            if (v == null ||
+                                                                v
+                                                                    .trim()
+                                                                    .isEmpty) {
+                                                              return l10n
+                                                                  .weightValidatorEmpty;
+                                                            }
+                                                            final kg =
+                                                                parseWeightInputToKg(
+                                                                  v,
+                                                                  prefs,
+                                                                );
+                                                            if (kg == null ||
+                                                                kg <= 0 ||
+                                                                kg > 50) {
+                                                              return l10n
+                                                                  .weightValidatorInvalid;
+                                                            }
+                                                            return null;
+                                                          },
+                                                        ),
                                                       ),
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: SizedBox(
+                                                        height:
+                                                            _weightControlHeight,
+                                                        child: ElevatedButton(
+                                                          onPressed:
+                                                              _registerWeight,
+                                                          style: ElevatedButton.styleFrom(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      12,
+                                                                ),
+                                                            minimumSize: const Size(
+                                                              0,
+                                                              _weightControlHeight,
+                                                            ),
+                                                            maximumSize: const Size(
+                                                              double.infinity,
+                                                              _weightControlHeight,
+                                                            ),
+                                                            fixedSize: const Size(
+                                                              double.infinity,
+                                                              _weightControlHeight,
+                                                            ),
+                                                            tapTargetSize:
+                                                                MaterialTapTargetSize
+                                                                    .shrinkWrap,
+                                                            visualDensity:
+                                                                VisualDensity
+                                                                    .compact,
+                                                          ),
+                                                          child: FittedBox(
+                                                            fit: BoxFit
+                                                                .scaleDown,
+                                                            child: Text(
+                                                              l10n.weightRegister,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ],
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ],
-                                  ],
+                                        ),
+                                        const SizedBox(height: 24),
+                                        chartRecordsAsync.when(
+                                          skipLoadingOnReload: true,
+                                          data: (records) => _summaryRow(
+                                            context,
+                                            chartVisibleRecords(records),
+                                            prefs,
+                                          ),
+                                          loading: () => const SizedBox(
+                                            height: 80,
+                                            child: Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            ),
+                                          ),
+                                          error: (e, _) => StreamRecordLoadError(
+                                            message: l10n.weightStreamError,
+                                            onRetry: () {
+                                              ref.invalidate(
+                                                weightRecordsForChartStreamProvider,
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            );
-                            },
-                            loading: () => const Card(
-                              child: SizedBox(
-                                height: 200,
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              ),
-                            ),
-                            error: (e, _) => Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: StreamRecordLoadError(
-                                  message: l10n.weightChartLoadError,
-                                  onRetry: () {
-                                    ref.invalidate(
-                                      weightRecordsForChartStreamProvider,
+                                const SizedBox(height: 24),
+                                chartRecordsAsync.when(
+                                  skipLoadingOnReload: true,
+                                  data: (records) {
+                                    final visible = chartVisibleRecords(
+                                      records,
                                     );
-                                    ref.invalidate(
-                                      weightRecordsStreamProvider,
+                                    final chartRecords =
+                                        _weightRecordsInChartRange(
+                                          visible,
+                                          chartTimeRange,
+                                        );
+                                    return Card(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(24),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.center,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    l10n.weightEvolution,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleMedium
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Flexible(
+                                                  fit: FlexFit.loose,
+                                                  flex: 0,
+                                                  child: FittedBox(
+                                                    fit: BoxFit.scaleDown,
+                                                    alignment:
+                                                        Alignment.centerRight,
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        _ChartFilterPill<
+                                                          WeightPercentile
+                                                        >(
+                                                          value:
+                                                              chartPercentile,
+                                                          values:
+                                                              WeightPercentile
+                                                                  .pickerValues,
+                                                          labelOf: (p) =>
+                                                              p.shortLabel,
+                                                          onChanged: (p) => ref
+                                                              .read(
+                                                                weightChartPrefsProvider
+                                                                    .notifier,
+                                                              )
+                                                              .setPercentile(p),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        _ChartFilterPill<
+                                                          WeightChartTimeRange
+                                                        >(
+                                                          value: chartTimeRange,
+                                                          values:
+                                                              WeightChartTimeRange
+                                                                  .pickerValues,
+                                                          labelOf: (r) =>
+                                                              r.label(l10n),
+                                                          onChanged: (r) => ref
+                                                              .read(
+                                                                weightChartPrefsProvider
+                                                                    .notifier,
+                                                              )
+                                                              .setTimeRange(r),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 16),
+                                            SizedBox(
+                                              height: 220,
+                                              child: chartRecords.isEmpty
+                                                  ? Center(
+                                                      child: Text(
+                                                        visible.isEmpty
+                                                            ? l10n.weightChartEmpty
+                                                            : l10n.weightChartNoDataInRange,
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                        style: TextStyle(
+                                                          color: AppTheme
+                                                              .textLight,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : _WeightChart(
+                                                      records: chartRecords,
+                                                      prefs: prefs,
+                                                      isMale: isMale,
+                                                      birthDate:
+                                                          baby?.birthDate ??
+                                                          DateTime.now(),
+                                                      percentile:
+                                                          chartPercentile,
+                                                    ),
+                                            ),
+                                            if (chartRecords.isNotEmpty) ...[
+                                              const SizedBox(height: 12),
+                                              Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Container(
+                                                    width: 20,
+                                                    height: 3,
+                                                    margin:
+                                                        const EdgeInsets.only(
+                                                          top: 5,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: AppTheme
+                                                          .primaryGreen
+                                                          .withValues(
+                                                            alpha: 0.4,
+                                                          ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            2,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      l10n.weightChartCaption,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodySmall
+                                                          ?.copyWith(
+                                                            color: AppTheme
+                                                                .textLight,
+                                                            height: 1.35,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                l10n.weightChartSource,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.copyWith(
+                                                      color:
+                                                          AppTheme.primaryBlue,
+                                                      height: 1.35,
+                                                      fontStyle:
+                                                          FontStyle.italic,
+                                                    ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
                                     );
                                   },
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          recordsAsync.when(
-                            skipLoadingOnReload: true,
-                            data: (allRecords) {
-                              final records = allRecords
-                                  .where(
-                                    (r) =>
-                                        r.id == null ||
-                                        !_deletedWeightIds.contains(r.id),
-                                  )
-                                  .toList();
-                              final hasOlder = hasOlderAsync.maybeWhen(
-                                data: (v) => v,
-                                orElse: () => false,
-                              );
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    l10n.historyTitle,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  if (records.isEmpty)
-                                    Text(
-                                      hasOlder
-                                          ? l10n.historyScrollLoadMore
-                                          : l10n.weightHistoryEmpty,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            color: AppTheme.textLight,
-                                            height: 1.4,
-                                          ),
-                                    )
-                                  else
-                                    ...records.map(
-                                      (r) => _WeightRecordTile(
-                                        record: r,
-                                        onDelete: r.id != null
-                                            ? () async {
-                                                final ok =
-                                                    await confirmDeleteRecord(
-                                                  context,
-                                                );
-                                                if (!context.mounted ||
-                                                    !ok) {
-                                                  return;
-                                                }
-                                                _deleteWeightRecord(r.id!);
-                                              }
-                                            : null,
+                                  loading: () => const Card(
+                                    child: SizedBox(
+                                      height: 200,
+                                      child: Center(
+                                        child: CircularProgressIndicator(),
                                       ),
                                     ),
-                                ],
-                              );
-                            },
-                            loading: () => const SizedBox.shrink(),
-                            error: (e, _) => StreamRecordLoadError(
-                              message: l10n.weightHistoryLoadError,
-                              onRetry: () =>
-                                  ref.invalidate(weightRecordsStreamProvider),
+                                  ),
+                                  error: (e, _) => Card(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: StreamRecordLoadError(
+                                        message: l10n.weightChartLoadError,
+                                        onRetry: () {
+                                          ref.invalidate(
+                                            weightRecordsForChartStreamProvider,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                chartRecordsAsync.when(
+                                  skipLoadingOnReload: true,
+                                  data: (allRecords) {
+                                    final allVisible = allRecords
+                                        .where(
+                                          (r) =>
+                                              r.id == null ||
+                                              !_deletedWeightIds.contains(r.id),
+                                        )
+                                        .toList();
+                                    final takeCount = math.min(
+                                      historyVisibleLimit,
+                                      allVisible.length,
+                                    );
+                                    final records = allVisible
+                                        .take(takeCount)
+                                        .toList();
+                                    final hasMoreInList =
+                                        allVisible.length > takeCount;
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          l10n.historyTitle,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        if (records.isEmpty)
+                                          Text(
+                                            l10n.weightHistoryEmpty,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  color: AppTheme.textLight,
+                                                  height: 1.4,
+                                                ),
+                                          )
+                                        else ...[
+                                          ...records.map(
+                                            (r) => _WeightRecordTile(
+                                              record: r,
+                                              onDelete: r.id != null
+                                                  ? () async {
+                                                      final ok =
+                                                          await confirmDeleteRecord(
+                                                            context,
+                                                          );
+                                                      if (!context.mounted ||
+                                                          !ok) {
+                                                        return;
+                                                      }
+                                                      _deleteWeightRecord(
+                                                        r.id!,
+                                                      );
+                                                    }
+                                                  : null,
+                                            ),
+                                          ),
+                                          if (hasMoreInList)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 8,
+                                              ),
+                                              child: Text(
+                                                l10n.historyScrollLoadMore,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      color: AppTheme.textLight,
+                                                      height: 1.4,
+                                                    ),
+                                              ),
+                                            ),
+                                        ],
+                                      ],
+                                    );
+                                  },
+                                  loading: () => const SizedBox.shrink(),
+                                  error: (e, _) => StreamRecordLoadError(
+                                    message: l10n.weightHistoryLoadError,
+                                    onRetry: () => ref.invalidate(
+                                      weightRecordsForChartStreamProvider,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
+                      );
+                    },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, st) => Center(
+                      child: StreamRecordLoadError(
+                        message: l10n.weightStreamError,
+                        onRetry: () => ref.invalidate(babyProfileProvider),
                       ),
                     ),
-                    ),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, st) => Center(
-                  child: StreamRecordLoadError(
-                    message: l10n.weightStreamError,
-                    onRetry: () => ref.invalidate(babyProfileProvider),
                   ),
-                ),
-              ),
             ),
             Positioned(
               top: 0,
@@ -657,11 +782,7 @@ class _WeightViewState extends ConsumerState<WeightView> {
           child: _SummaryCard(
             title: l10n.weightTrendCard,
             value: dailyGPerDay != null
-                ? formatWeightTrendCompact(
-                    dailyGPerDay,
-                    prefs,
-                    l10n,
-                  )
+                ? formatWeightTrendCompact(dailyGPerDay, prefs, l10n)
                 : l10n.weightDash,
             valueIsPlaceholder: dailyGPerDay == null,
             showTrendIcon: dailyGPerDay != null,
@@ -840,8 +961,12 @@ class _WeightChart extends StatelessWidget {
     // Rango Y: incluir siempre pesos y percentil para que la línea del percentil sea visible
     final dataMinY = minWeight < refLow ? minWeight : refLow;
     final dataMaxY = maxWeight > refHigh ? maxWeight : refHigh;
-    final minY = (dataMinY - 0.5).clamp(0.0, 20.0);
-    final maxY = (dataMaxY + 0.5).clamp(0.0, 20.0);
+    var minY = (dataMinY - 0.5).clamp(0.0, 20.0);
+    var maxY = (dataMaxY + 0.5).clamp(0.0, 20.0);
+    if (maxY <= minY) {
+      maxY = (minY + 0.5).clamp(0.0, 50.0);
+      if (maxY <= minY) minY = math.max(0.0, maxY - 0.5);
+    }
 
     final refSpots = sortedRecords.map((r) {
       final age = _ageInMonths(r.dateTime);
@@ -1055,7 +1180,8 @@ class _WeightRecordTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final prefs = ref.watch(measurementPrefsProvider).valueOrNull ??
+    final prefs =
+        ref.watch(measurementPrefsProvider).valueOrNull ??
         MeasurementPrefs.defaultsForDispatcher();
     final dateCode = dateFormatLanguageCode(context);
     final accent = AppTheme.weightHistoryAccent;
@@ -1154,7 +1280,8 @@ class _WeightRecordTile extends ConsumerWidget {
     WeightRecord record,
   ) {
     final l10n = AppLocalizations.of(context)!;
-    final prefs = ref.read(measurementPrefsProvider).valueOrNull ??
+    final prefs =
+        ref.read(measurementPrefsProvider).valueOrNull ??
         MeasurementPrefs.defaultsForDispatcher();
     final controller = TextEditingController(
       text: weightInputDisplayFromKg(record.weightKg, prefs),
@@ -1165,77 +1292,106 @@ class _WeightRecordTile extends ConsumerWidget {
       record.dateTime.day,
     );
     var selectedTime = TimeOfDay.fromDateTime(record.dateTime);
-    showModalBottomSheet(
+    final editWeightFocus = FocusNode();
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => EditBottomSheet(
-          title: l10n.weightEditTitle,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                weightFieldLabelForPrefs(prefs, l10n),
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
+      builder: (ctx) => KeyboardActions(
+        isDialog: true,
+        config: KeyboardActionsConfig(
+          keyboardActionsPlatform: KeyboardActionsPlatform.ALL,
+          keyboardBarColor: AppTheme.softPrimaryFill,
+          nextFocus: false,
+          actions: [
+            KeyboardActionsItem(
+              focusNode: editWeightFocus,
+              displayArrows: false,
+              toolbarButtons: [
+                (node) => IconButton(
+                  icon: const Icon(Icons.check_rounded),
+                  color: AppTheme.palettePrimary,
+                  tooltip: l10n.commonDone,
+                  onPressed: () => node.unfocus(),
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: controller,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  hintText: weightEntryHint(prefs, l10n),
-                  filled: true,
-                  fillColor: AppTheme.fieldBackground,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
-                    borderSide: const BorderSide(color: AppTheme.fieldBorder),
+              ],
+            ),
+          ],
+        ),
+        child: StatefulBuilder(
+          builder: (context, setState) => EditBottomSheet(
+            title: l10n.weightEditTitle,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  weightFieldLabelForPrefs(prefs, l10n),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textDark,
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
-                    borderSide: const BorderSide(color: AppTheme.fieldBorder),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: controller,
+                  focusNode: editWeightFocus,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => editWeightFocus.unfocus(),
+                  onTapOutside: (_) => editWeightFocus.unfocus(),
+                  decoration: InputDecoration(
+                    hintText: weightEntryHint(prefs, l10n),
+                    filled: true,
+                    fillColor: AppTheme.fieldBackground,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                      borderSide: const BorderSide(color: AppTheme.fieldBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                      borderSide: const BorderSide(color: AppTheme.fieldBorder),
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(height: EditDialogTheme.spacingBetweenSections),
-              DatePickerField(
-                value: selectedDate,
-                onChanged: (d) => setState(() => selectedDate = d),
-                lastDate: DateTime.now().add(const Duration(days: 1)),
-              ),
-              SizedBox(height: EditDialogTheme.spacingBetweenFields),
-              TimePickerField(
-                value: selectedTime,
-                onChanged: (t) => setState(() => selectedTime = t),
-              ),
-            ],
+                SizedBox(height: EditDialogTheme.spacingBetweenSections),
+                DatePickerField(
+                  value: selectedDate,
+                  onChanged: (d) => setState(() => selectedDate = d),
+                  lastDate: DateTime.now().add(const Duration(days: 1)),
+                ),
+                SizedBox(height: EditDialogTheme.spacingBetweenFields),
+                TimePickerField(
+                  value: selectedTime,
+                  onChanged: (t) => setState(() => selectedTime = t),
+                ),
+              ],
+            ),
+            onCancel: () => Navigator.pop(ctx),
+            onSave: () async {
+              final kg = parseWeightInputToKg(controller.text, prefs);
+              if (kg != null && kg > 0 && kg <= 50) {
+                final dt = DateTime(
+                  selectedDate.year,
+                  selectedDate.month,
+                  selectedDate.day,
+                  selectedTime.hour,
+                  selectedTime.minute,
+                );
+                await IsarService.updateWeightRecord(
+                  record.copyWith(weightKg: kg, dateTime: dt),
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+              }
+            },
           ),
-          onCancel: () => Navigator.pop(ctx),
-          onSave: () async {
-            final kg = parseWeightInputToKg(controller.text, prefs);
-            if (kg != null && kg > 0 && kg <= 50) {
-              final dt = DateTime(
-                selectedDate.year,
-                selectedDate.month,
-                selectedDate.day,
-                selectedTime.hour,
-                selectedTime.minute,
-              );
-              await IsarService.updateWeightRecord(
-                record.copyWith(weightKg: kg, dateTime: dt),
-              );
-              if (ctx.mounted) Navigator.pop(ctx);
-            }
-          },
         ),
       ),
-    );
+    ).whenComplete(() {
+      editWeightFocus.dispose();
+      controller.dispose();
+    });
   }
 }
 
@@ -1274,16 +1430,13 @@ class _ChartFilterPill<T> extends StatelessWidget {
             color: AppTheme.palettePrimary,
           ),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.palettePrimary,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.2,
-              ),
+            color: AppTheme.palettePrimary,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
           items: values
               .map(
-                (v) => DropdownMenuItem<T>(
-                  value: v,
-                  child: Text(labelOf(v)),
-                ),
+                (v) => DropdownMenuItem<T>(value: v, child: Text(labelOf(v))),
               )
               .toList(),
           onChanged: (v) {

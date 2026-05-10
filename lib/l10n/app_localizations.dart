@@ -935,8 +935,8 @@ abstract class AppLocalizations {
   /// No description provided for @weightChartCaption.
   ///
   /// In es, this message translates to:
-  /// **'Línea de referencia: {percentile} peso por edad (OMS).'**
-  String weightChartCaption(String percentile);
+  /// **'Línea de referencia peso por edad (OMS).'**
+  String get weightChartCaption;
 
   /// No description provided for @weightChartSource.
   ///

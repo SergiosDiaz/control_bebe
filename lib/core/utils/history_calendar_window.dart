@@ -1,5 +1,9 @@
 import 'dart:math' as math;
 
+/// Pesadas mostradas al abrir el historial en la pestaña Peso (luego +[kWeightHistoryPageIncrement]).
+const int kWeightHistoryInitialVisible = 6;
+const int kWeightHistoryPageIncrement = 6;
+
 /// Días de calendario que se muestran al abrir la pestaña (incluye hoy).
 const int kHistoryPaginationInitialDays = 3;
 

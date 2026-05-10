@@ -124,7 +124,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
     if (mounted) {
       // Forzar recarga de streams y ventana de 3 días con la sesión actual.
       resetRecordHistoryFirestoreDays(ref);
-      ref.invalidate(weightRecordsStreamProvider);
+      ref.invalidate(weightRecordsForChartStreamProvider);
       ref.invalidate(diaperRecordsStreamProvider);
       ref.invalidate(feedingRecordsStreamProvider);
       setState(() {

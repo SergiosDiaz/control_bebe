@@ -251,7 +251,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
     );
     if (mounted) {
       resetRecordHistoryFirestoreDays(ref);
-      ref.invalidate(weightRecordsStreamProvider);
+      ref.invalidate(weightRecordsForChartStreamProvider);
       ref.invalidate(diaperRecordsStreamProvider);
       ref.invalidate(feedingRecordsStreamProvider);
       await NextFeedingNotificationService.syncFromStorage();

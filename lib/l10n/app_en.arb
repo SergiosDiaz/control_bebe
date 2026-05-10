@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "My Baby Diary",
+  "appTitle": "Baby Tracker",
   "navHome": "HOME",
   "navDiapers": "DIAPERS",
   "navFeeding": "FEEDING",
@@ -139,12 +139,7 @@
   "weightValidatorInvalid": "Invalid weight",
   "weightStreamError": "Could not load weights. Check connection or retry.",
   "weightEvolution": "Trend",
-  "weightChartCaption": "Reference line: {percentile} weight-for-age (WHO).",
-  "@weightChartCaption": {
-    "placeholders": {
-      "percentile": { "type": "String" }
-    }
-  },
+  "weightChartCaption": "Reference line weight-for-age (WHO).",
   "weightChartSource": "Source: World Health Organization (WHO) — Child Growth Standards. who.int/tools/child-growth-standards",
   "weightChartLoadError": "Could not load the weight chart.",
   "weightHistoryLoadError": "Could not load weight history.",

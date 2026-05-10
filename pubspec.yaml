@@ -68,11 +68,16 @@ dependencies:
   confetti: ^0.8.0
   shared_preferences: ^2.3.5
   in_app_review: ^2.0.11
+  keyboard_actions: ^4.2.1
 
 dependency_overrides:
   # Parche: ContentState con revisión monotónica para que ActivityKit refresque la Isla (pub 2.4.7 solo enviaba appGroupId).
   live_activities:
     path: packages/live_activities
+  # path_provider_foundation 2.6+ arrastra objective_c 9.x (native assets); Apple rechaza el
+  # archive con "unsupported platform in the arm64 slice" / simulador en el binario (ITMS 91169).
+  # Ver: https://github.com/flutter/flutter/issues/185667 y dart-lang/native#2989
+  path_provider_foundation: 2.5.1
 
 dev_dependencies:
   flutter_test:

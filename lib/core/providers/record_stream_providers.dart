@@ -9,26 +9,30 @@ import 'baby_profile_provider.dart';
 
 // --- Ventana de días consultada en Firestore (ampliable al hacer scroll) ---
 
-final feedingHistoryFirestoreDaysProvider =
-    StateProvider<int>((_) => kHistoryPaginationInitialDays);
+final feedingHistoryFirestoreDaysProvider = StateProvider<int>(
+  (_) => kHistoryPaginationInitialDays,
+);
 
-final diaperHistoryFirestoreDaysProvider =
-    StateProvider<int>((_) => kHistoryPaginationInitialDays);
+final diaperHistoryFirestoreDaysProvider = StateProvider<int>(
+  (_) => kHistoryPaginationInitialDays,
+);
 
-final weightHistoryFirestoreDaysProvider =
-    StateProvider<int>((_) => kHistoryPaginationInitialDays);
+/// Cuántas pesadas recientes se muestran en el historial de Peso (ampliable al hacer scroll).
+final weightHistoryVisibleLimitProvider = StateProvider<int>(
+  (_) => kWeightHistoryInitialVisible,
+);
 
-/// Vuelve a 3 días de ventana (tras logout, invalidación de datos, etc.).
+/// Vuelve a 3 días de ventana (alimentación/pañales), reinicia el historial de peso a
+/// [kWeightHistoryInitialVisible] pesadas, e invalida streams (p. ej. tras logout).
 void resetRecordHistoryFirestoreDays(WidgetRef ref) {
   ref.read(feedingHistoryFirestoreDaysProvider.notifier).state =
       kHistoryPaginationInitialDays;
   ref.read(diaperHistoryFirestoreDaysProvider.notifier).state =
       kHistoryPaginationInitialDays;
-  ref.read(weightHistoryFirestoreDaysProvider.notifier).state =
-      kHistoryPaginationInitialDays;
+  ref.read(weightHistoryVisibleLimitProvider.notifier).state =
+      kWeightHistoryInitialVisible;
   ref.invalidate(hasOlderFeedingRecordsProvider);
   ref.invalidate(hasOlderDiaperRecordsProvider);
-  ref.invalidate(hasOlderWeightRecordsProvider);
   ref.invalidate(weightRecordsForChartStreamProvider);
   ref.invalidate(babyProfileProvider);
 }
@@ -40,15 +44,10 @@ Future<List<WeightRecord>> waitForWeightChartRecords(WidgetRef ref) {
 
 // --- Streams acotados por fecha (menos lecturas que la colección completa) ---
 
-final weightRecordsStreamProvider = StreamProvider<List<WeightRecord>>((ref) {
-  final days = ref.watch(weightHistoryFirestoreDaysProvider);
-  final start = historyWindowStartForDays(days);
-  return IsarService.watchWeightRecordsSince(start);
-});
-
 /// Serie completa: gráfica, resumen (último peso / tendencia) y percentiles.
-final weightRecordsForChartStreamProvider =
-    StreamProvider<List<WeightRecord>>((ref) {
+final weightRecordsForChartStreamProvider = StreamProvider<List<WeightRecord>>((
+  ref,
+) {
   return IsarService.watchAllWeightRecords();
 });
 
@@ -76,10 +75,4 @@ final hasOlderDiaperRecordsProvider = FutureProvider<bool>((ref) async {
   final days = ref.watch(diaperHistoryFirestoreDaysProvider);
   final start = historyWindowStartForDays(days);
   return IsarService.hasDiaperRecordStrictlyBefore(start);
-});
-
-final hasOlderWeightRecordsProvider = FutureProvider<bool>((ref) async {
-  final days = ref.watch(weightHistoryFirestoreDaysProvider);
-  final start = historyWindowStartForDays(days);
-  return IsarService.hasWeightRecordStrictlyBefore(start);
 });

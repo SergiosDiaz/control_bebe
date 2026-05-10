@@ -504,9 +504,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get weightEvolution => 'Evolución';
 
   @override
-  String weightChartCaption(String percentile) {
-    return 'Línea de referencia: $percentile peso por edad (OMS).';
-  }
+  String get weightChartCaption => 'Línea de referencia peso por edad (OMS).';
 
   @override
   String get weightChartSource =>

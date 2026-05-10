@@ -133,7 +133,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation>
     );
     if (!mounted) return;
     resetRecordHistoryFirestoreDays(ref);
-    ref.invalidate(weightRecordsStreamProvider);
+    ref.invalidate(weightRecordsForChartStreamProvider);
     ref.invalidate(diaperRecordsStreamProvider);
     ref.invalidate(feedingRecordsStreamProvider);
     await NextFeedingNotificationService.syncFromStorage();

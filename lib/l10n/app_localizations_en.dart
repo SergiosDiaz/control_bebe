@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'My Baby Diary';
+  String get appTitle => 'Baby Tracker';
 
   @override
   String get navHome => 'HOME';
@@ -503,9 +503,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get weightEvolution => 'Trend';
 
   @override
-  String weightChartCaption(String percentile) {
-    return 'Reference line: $percentile weight-for-age (WHO).';
-  }
+  String get weightChartCaption => 'Reference line weight-for-age (WHO).';
 
   @override
   String get weightChartSource =>
